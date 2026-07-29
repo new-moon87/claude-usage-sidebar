@@ -1,0 +1,30 @@
+{
+  "name": "claude-usage-sidebar",
+  "version": "1.0.0",
+  "description": "Claude Code 사용량(5시간·주간·모델별 주간·추가 크레딧)을 화면 가장자리에 표시하는 초소형 Windows 사이드바",
+  "bin": {
+    "claude-usage-sidebar": "bin/cli.js"
+  },
+  "files": [
+    "bin/",
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "os": [
+    "win32"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "keywords": [
+    "claude",
+    "claude-code",
+    "usage",
+    "sidebar",
+    "windows",
+    "wpf",
+    "tray"
+  ]
+}

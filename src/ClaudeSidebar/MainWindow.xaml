@@ -1,0 +1,16 @@
+<Window x:Class="ClaudeSidebar.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ClaudeSidebar" WindowStyle="None" AllowsTransparency="True"
+        Background="Transparent" Topmost="True" ShowInTaskbar="False"
+        ResizeMode="NoResize" Width="232" Height="320" ShowActivated="False">
+    <StackPanel x:Name="RootPanel" Orientation="Horizontal"
+                HorizontalAlignment="Right" VerticalAlignment="Center">
+        <Border x:Name="DetailPanel" Width="202" CornerRadius="10" Background="#F51F1E1D"
+                BorderBrush="#26FFFFFF" BorderThickness="1" Margin="0,0,6,0"
+                Padding="12,8,12,8" Visibility="Hidden" VerticalAlignment="Center">
+            <StackPanel x:Name="DetailRows" />
+        </Border>
+        <StackPanel x:Name="PillStrip" Margin="0,0,3,0" VerticalAlignment="Center" />
+    </StackPanel>
+</Window>

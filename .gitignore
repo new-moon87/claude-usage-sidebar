@@ -1,0 +1,18 @@
+# .NET 빌드 중간 산출물 (사용자 경로가 들어가므로 커밋하지 않는다)
+# 루트의 bin/ 은 npm CLI 런처이므로 제외 대상이 아니다
+src/**/bin/
+src/**/obj/
+dist-standalone/
+
+# 디버그 심볼 — 실행에 불필요하고 빌드 경로가 박혀 있다
+*.pdb
+
+# 로컬 전용 도구 설정
+.claude/
+.vs/
+*.user
+
+# 개인 계정 데이터가 담길 수 있는 파일
+docs/usage-sample.json
+*.credentials.json
+*.credentials.json.bak
