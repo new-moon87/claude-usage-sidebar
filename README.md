@@ -3,6 +3,10 @@
 Claude Code의 사용량 한도를 화면 오른쪽 가장자리에 폭 13px짜리 알약으로 표시하는 Windows 상주 프로그램.
 Claude Code 데스크톱 앱을 켜면 자동으로 나타나고, 끄면 자동으로 사라진다.
 
+| 평소 — 알약만 | 마우스를 올리면 — 상세 패널 |
+|:--:|:--:|
+| <img src="docs/images/sidebar-collapsed.png" alt="접힌 상태의 알약 스트립" height="300"> | <img src="docs/images/sidebar-expanded.png" alt="펼쳐진 상세 패널" height="300"> |
+
 표시 지표 4종:
 
 | 알약 | 지표 |
