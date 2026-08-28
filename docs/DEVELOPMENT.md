@@ -183,7 +183,9 @@ src/ClaudeSidebar/
    ├─ UsageApiClient.cs          — 3.3 (JsonDocument 관대 파싱)
    ├─ UsageHistoryReader.cs      — 3.4
    ├─ ProcessWatcher.cs          — 3.5
-   ├─ SettingsStore.cs           — %APPDATA%\ClaudeSidebar\settings.json {Top, Pinned, Autostart, ForceShow}
+   ├─ DisplayInfo.cs             — 모니터 열거/DPI/물리 좌표 (캐시 금지)
+   ├─ SettingsStore.cs           — settings.json {MonitorName, PhysY, Pinned, Autostart, ForceShow}
+   │                                로드 실패를 조용히 삼키지 말고 로그를 남길 것
    └─ Autostart.cs               — HKCU\...\Run에 "ClaudeSidebar"=현재 exe 경로
 ```
 
@@ -215,7 +217,28 @@ HttpClient는 하나를 공유 (`Timeout = 20초`).
 > 재배치 연쇄). **창 크기를 232×320으로 고정**하고, 패널은 `Visibility.Hidden`(Collapsed 아님)으로 접는다 —
 > 레이아웃 공간이 유지되어 창 크기가 안 변하고, AllowsTransparency 창에서 알파 0 영역은 클릭이 그대로 통과한다.
 
-- 배치: `Left = SystemParameters.WorkArea.Right - Width`, Top은 저장값 또는 세로 중앙(WorkArea 기준으로 클램프).
+- 배치: **`SystemParameters.WorkArea`를 쓰지 말 것.** 이 값은 주 모니터의 작업영역만 돌려주므로 보조 모니터에
+  도달할 수 없고, 혼합 DPI에서 위치와 크기의 기준 배율이 어긋난다. 대신 `EnumDisplayMonitors`로 매번 새로 열거하고,
+  `GetDpiForMonitor`로 배율을 얻어 **물리 픽셀**로 계산한다 (`Services/DisplayInfo.cs`).
+
+> **함정 ⑪ (모니터 정보 캐시 금지)** — 모니터 목록·작업영역을 시작 시 한 번만 읽어 캐시하면, 모니터를 꽂거나 빼거나
+> 배율을 바꿨을 때 옛 좌표에 창을 놓는다. 매 배치마다 새로 열거할 것. 그리고 `SystemEvents.DisplaySettingsChanged`를
+> **실제로 구독**할 것(상수만 선언하고 처리기가 비어 있는 사례가 흔하다). 이 신호는 구성이 확정되기 **전에** 오므로
+> 한 번만 반응하면 중간 상태를 잡는다 → **0.15 / 0.7 / 2 / 5초 뒤 다시 확인해 마지막 값을 쓴다.**
+> 모니터 전원을 껐다 켜는 경로는 이벤트가 아예 안 오기도 하므로, **2초 주기로 구성 지문과 실제 창 좌표를 대조하는
+> 그물**을 따로 둔다.
+
+> **함정 ⑫ (작업영역의 위치를 잃지 말 것)** — 보조 모니터는 원점에 있지 않다(실측 예: `(-182,1080)-(2698,2880)`).
+> "오른쪽 끝"을 화면 **폭**으로 계산하면 주 모니터 기준 좌표가 나와 화면 밖에 놓인다. 반드시 `work.Right - 창물리폭`
+> 처럼 **실제 변 좌표**로 계산한다. 폭 × 비율로 하면 와이드 모니터에서 가장자리가 아니라 화면 한가운데에 붙는다.
+
+> **함정 ⑬ (크기를 SetWindowPos로 건드리지 말 것)** — 실측 재현: 192dpi 모니터로 옮기며 물리 `464x640`을 지정했더니
+> 실제로는 **`928x1280`**(정확히 2배)이 되어 창이 화면 밖으로 나갔다. WPF가 넘겨받은 물리값을 자기 논리 좌표(DIP)로
+> 착각해 모니터 배율만큼 다시 부풀리기 때문이다. 증상은 "창은 그 자리에 있는데 안 보이고, 마우스를 올리거나
+> 크기가 바뀌면 나타난다".
+> **해법: 위치만 `SWP_NOSIZE`로 옮기고 크기는 WPF 논리값(232x320)에 맡긴다.** 그리고 DPI 경계를 넘으면 물리 크기가
+> 바뀌므로 **적용 → `GetWindowRect` 대조 → 재계산**을 최대 3회 돌린다(1회로는 전환 지연을 못 흡수한다).
+> 논리 크기가 오염됐으면(`Width`가 464 등) 먼저 원래 값으로 되돌린 뒤 배치한다.
 - `OnSourceInitialized`에서 `GWL_EXSTYLE(-20)`에 `WS_EX_TOOLWINDOW(0x80) | WS_EX_NOACTIVATE(0x08000000)` OR —
   Alt-Tab에서 숨기고 포커스를 훔치지 않게 (마우스 이벤트는 정상 동작).
 - 호버: `RootPanel.MouseEnter` → 패널 Visible / `MouseLeave` → 350ms 타이머 후 `!Pinned && !RootPanel.IsMouseOver`면 Hidden.
@@ -258,8 +281,9 @@ _pinBtn.Text = Pinned ? "\uE77A" : "\uE718";   // Segoe MDL2 Assets: Unpin / Pin
 ## 7. 오케스트레이션 (App.xaml.cs)
 
 - `ShutdownMode="OnExplicitShutdown"`, Mutex `"ClaudeSidebar_SingleInstance"`로 중복 실행 차단.
-- 타이머: 프로세스 감지 3초 / 사용량 폴링 60초(표시 중일 때만) / 카운트다운 재계산 30초.
-- `SystemEvents.PowerModeChanged` Resume 시 즉시 갱신 (`Dispatcher.Invoke`로 감쌀 것).
+- 타이머: 프로세스 감지 3초 / 사용량 폴링 60초(표시 중일 때만) / 카운트다운 재계산 30초 / **배치 그물 2초**(구성 지문 + 실제 좌표 대조).
+- `SystemEvents.PowerModeChanged` Resume 시 즉시 갱신 + 재배치 (`Dispatcher.Invoke`로 감쌀 것).
+- `SystemEvents.DisplaySettingsChanged` 구독 → 함정 ⑪의 다단 재확인 경로로 보낼 것.
 - 시작 시퀀스: 설정 로드 → 폴백 파일로 첫 화면 즉시 표시 → 워처 시작 → 강제 갱신 1회.
 - `RefreshAsync`: `_fetching` 가드(재진입 금지) → 429 백오프 중이면 즉시 반환 → 토큰 확보 → API → 실패 시 폴백 →
   `finally`에서 항상 `ApplySnapshot` + 로그 1줄 (`src=API H=.. W=.. F=.. C=.. status=..` — 이 로그가 검증 수단이다).

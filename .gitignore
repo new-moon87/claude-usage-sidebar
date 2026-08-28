@@ -16,3 +16,6 @@ dist-standalone/
 docs/usage-sample.json
 *.credentials.json
 *.credentials.json.bak
+
+# self-contained 단일 exe (138MB) — GitHub 100MB 한도 초과, 로컬 산출물
+완료/

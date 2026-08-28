@@ -1,4 +1,4 @@
-using System.Net.Http;
+﻿using System.Net.Http;
 using System.Windows;
 using System.Windows.Threading;
 
@@ -17,6 +17,9 @@ public partial class App : Application
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(20) };
     private DispatcherTimer? _usageTimer;
     private DispatcherTimer? _tickTimer;
+    private DispatcherTimer? _guardTimer;
+    private readonly List<DispatcherTimer> _reprobes = new();
+    private string _lastFingerprint = "";
     private UsageSnapshot? _last;
     private string? _status;
     private bool _fetching;
@@ -33,16 +36,28 @@ public partial class App : Application
         }
         base.OnStartup(e);
         Log.Write("=== app start ===");
+        Log.Write($"[build] {(System.Diagnostics.Debugger.IsAttached ? "debug-attached" : "no-debugger")} " +
+                  $"exe={Environment.ProcessPath}");
+        DisplayInfo.LogAll("start");
         _settings.Load();
         _creds = new CredentialStore(_http);
         _api = new UsageApiClient(_http);
 
         _window = new MainWindow { Pinned = _settings.Settings.Pinned };
-        if (_settings.Settings.Top is double top) _window.SetSavedTop(top);
+        // 구버전 설정(주 모니터 기준 DIP Top)은 물리 Y 로 한 번 옮겨 준다.
+        int? physY = _settings.Settings.PhysY
+                     ?? (_settings.Settings.Top is double t ? (int)Math.Round(t) : null);
+        _window.SetSavedPlacement(_settings.Settings.MonitorName, physY);
         _window.RefreshRequested += ManualRefresh;
         _window.ReloginRequested += OpenLoginTerminal;
         _window.PinnedChanged += p => { _settings.Settings.Pinned = p; _settings.Save(); };
-        _window.TopChanged += t => { _settings.Settings.Top = t; _settings.Save(); };
+        _window.PlacementChanged += (mon, y) =>
+        {
+            _settings.Settings.MonitorName = mon;
+            _settings.Settings.PhysY = y;
+            _settings.Settings.Top = null;   // 구버전 값은 폐기
+            _settings.Save();
+        };
 
         _tray = new TrayIcon(_settings.Settings.ForceShow, _settings.Settings.Autostart);
         _tray.RefreshRequested += ManualRefresh;
@@ -81,8 +96,24 @@ public partial class App : Application
         Microsoft.Win32.SystemEvents.PowerModeChanged += (_, pe) =>
         {
             if (pe.Mode == Microsoft.Win32.PowerModes.Resume)
-                Dispatcher.Invoke(() => _ = RefreshAsync(force: true));
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    _ = RefreshAsync(force: true);
+                    OnDisplayChanged("resume");
+                });
+            }
         };
+
+        // 모니터 연결/해제/배율 변경. 이 신호는 구성이 확정되기 전에 오므로 한 번만 반응하면 안 된다.
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged += (_, _) =>
+            Dispatcher.Invoke(() => OnDisplayChanged("event"));
+
+        // 모니터 전원을 껐다 켜는 경로는 이벤트가 아예 안 오기도 한다. 실제 좌표와 주기적으로 대조하는 그물.
+        _lastFingerprint = DisplayInfo.Fingerprint();
+        _guardTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        _guardTimer.Tick += (_, _) => GuardTick();
+        _guardTimer.Start();
 
         // 첫 화면은 앱 기록 파일로 즉시 채우고, 곧바로 API로 갱신한다.
         _last = _history.ReadLast();
@@ -91,6 +122,50 @@ public partial class App : Application
         UpdateVisibility();
         _ = RefreshAsync(force: true);
         _tickTimer.Start();
+    }
+
+    // 디스플레이 구성이 흔들릴 때 여러 시점에서 다시 확인한다. 마지막 값이 최종이다.
+    private static readonly double[] ReprobeDelays = { 0.15, 0.7, 2.0, 5.0 };
+
+    private void OnDisplayChanged(string source)
+    {
+        Log.Write($"[display] 변경 신호 수신({source}) — {string.Join("/", ReprobeDelays)}초 뒤 재확인 예약");
+        DisplayInfo.LogAll(source);
+
+        foreach (var t in _reprobes) t.Stop();
+        _reprobes.Clear();
+
+        foreach (var delay in ReprobeDelays)
+        {
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(delay) };
+            timer.Tick += (_, _) =>
+            {
+                timer.Stop();
+                _reprobes.Remove(timer);
+                _lastFingerprint = DisplayInfo.Fingerprint();
+                if (_window is { IsVisible: true })
+                    _window.ApplyPlacement($"{source}+{delay}s");
+            };
+            _reprobes.Add(timer);
+            timer.Start();
+        }
+    }
+
+    private void GuardTick()
+    {
+        var fp = DisplayInfo.Fingerprint();
+        if (fp != _lastFingerprint)
+        {
+            _lastFingerprint = fp;
+            Log.Write("[display] 주기 점검에서 구성 변경 감지 (이벤트 미수신 경로)");
+            OnDisplayChanged("polled");
+            return;
+        }
+        if (_window?.IsPlacementDrifted() == true)
+        {
+            Log.Write("[display] 주기 점검에서 위치 이탈 감지 — 재배치");
+            _window.ApplyPlacement("guard");
+        }
     }
 
     private void UpdateVisibility()

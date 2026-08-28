@@ -16,6 +16,9 @@ public partial class MainWindow : Window
     private const double PillW = 13;
     private const double PillH = 64;
     private const double RowBarW = 176;
+    // 창의 논리 크기(DIP). 이 값은 절대 SetWindowPos 로 바꾸지 않는다 — 함정 ⑪ 참고.
+    private const double BaseW = 232;
+    private const double BaseH = 320;
     private static readonly Color Red = Color.FromRgb(0xE2, 0x4B, 0x4A);
     private static readonly CultureInfo Korean = new("ko-KR");
 
@@ -40,7 +43,8 @@ public partial class MainWindow : Window
     private TextBlock _footer = null!;
     private TextBlock _statusLine = null!;
     private TextBlock _pinBtn = null!;
-    private double? _savedTop;
+    private string? _savedMonitor;
+    private int? _savedPhysY;
     private bool _pinned;
     private string _footerBase = "--";
     private DispatcherTimer? _flashTimer;
@@ -57,7 +61,7 @@ public partial class MainWindow : Window
     public event Action? RefreshRequested;
     public event Action? ReloginRequested;
     public event Action<bool>? PinnedChanged;
-    public event Action<double>? TopChanged;
+    public event Action<string, int>? PlacementChanged;
 
     public MainWindow()
     {
@@ -78,7 +82,7 @@ public partial class MainWindow : Window
         RootPanel.MouseEnter += (_, _) => Expand();
         RootPanel.MouseLeave += (_, _) => { if (!Pinned) _collapseTimer.Start(); };
         PillStrip.MouseLeftButtonDown += OnStripMouseDown;
-        Loaded += (_, _) => Anchor();
+        Loaded += (_, _) => ApplyPlacement("loaded");
     }
 
     protected override void OnSourceInitialized(EventArgs e)
@@ -90,24 +94,108 @@ public partial class MainWindow : Window
         SetWindowLong(hwnd, GwlExstyle, ex | WsExToolwindow | WsExNoactivate);
     }
 
-    public void SetSavedTop(double top) => _savedTop = top;
-
-    private void Anchor()
+    public void SetSavedPlacement(string? monitor, int? physY)
     {
-        var wa = SystemParameters.WorkArea;
-        Left = wa.Right - Width;
-        double top = _savedTop ?? (wa.Top + (wa.Height - Height) / 2);
-        Top = Math.Max(wa.Top, Math.Min(top, wa.Bottom - Height));
+        _savedMonitor = monitor;
+        _savedPhysY = physY;
+    }
+
+    // 목표 모니터를 고른다. 모니터 목록은 매번 새로 묻는다(캐시 금지 — 함정 ⑧).
+    private DisplayInfo.Mon PickMonitor()
+    {
+        var mons = DisplayInfo.Enumerate();
+        if (mons.Count == 0)
+            return new DisplayInfo.Mon("(none)", default, default, 96, 96, true);
+        if (_savedMonitor is not null)
+        {
+            var saved = mons.FirstOrDefault(m => m.Name == _savedMonitor);
+            if (saved is not null) return saved;
+        }
+        return mons.FirstOrDefault(m => m.Primary) ?? mons[0];
+    }
+
+    // 물리 픽셀 기준으로 배치한다.
+    // 크기는 건드리지 않는다(SWP_NOSIZE): DPI 경계를 넘을 때 WPF 가 물리값을 DIP 로 착각해
+    // 창을 2배/절반으로 되돌리기 때문이다. 크기는 WPF 논리값(BaseW/BaseH)에 맡긴다.
+    public void ApplyPlacement(string reason)
+    {
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero)
+        {
+            Log.Write($"[place:{reason}] hwnd 없음 — 건너뜀");
+            return;
+        }
+
+        // 논리 크기가 어긋나 있으면 되돌린다(툴킷이 되돌린 흔적 복구).
+        if (Math.Abs(Width - BaseW) > 0.5 || Math.Abs(Height - BaseH) > 0.5)
+        {
+            Log.Write($"[place:{reason}] 논리크기 이탈 {Width:0.#}x{Height:0.#} → {BaseW}x{BaseH} 복구");
+            Width = BaseW;
+            Height = BaseH;
+            UpdateLayout();
+        }
+
+        var target = PickMonitor();
+
+        // DPI 경계를 넘으면 물리 크기가 바뀌므로, 실제 크기를 다시 읽어 재계산한다.
+        for (int attempt = 1; attempt <= 3; attempt++)
+        {
+            if (!DisplayInfo.GetWindowRect(hwnd, out var cur)) return;
+            int pw = cur.Width, ph = cur.Height;
+
+            // 가장자리는 반드시 실제 변 좌표로 계산한다(폭 × 비율 금지 — 함정 ⑨).
+            int x = target.Work.Right - pw;
+            int y = _savedPhysY ?? (target.Work.Top + (target.Work.Height - ph) / 2);
+            y = Math.Max(target.Work.Top, Math.Min(y, target.Work.Bottom - ph));
+
+            DisplayInfo.SetWindowPos(hwnd, IntPtr.Zero, x, y, 0, 0, DisplayInfo.SwpMoveOnly);
+
+            if (!DisplayInfo.GetWindowRect(hwnd, out var after)) return;
+            var landed = DisplayInfo.ForWindow(hwnd);
+            bool ok = after.Left == x && after.Top == y
+                      && after.Width == pw && after.Height == ph
+                      && landed.Name == target.Name;
+
+            Log.Write($"[place:{reason}] 시도{attempt} 목표={target.Name} work={target.Work} dpi={target.DpiX} " +
+                      $"| 지정=({x},{y}) {pw}x{ph} | 실제={after} | 착지={landed.Name} dpi={landed.DpiX} " +
+                      $"| wpf={Width:0.#}x{Height:0.#} | {(ok ? "일치" : "불일치→재시도")}");
+
+            if (ok) return;
+            target = PickMonitor();
+        }
+    }
+
+    // 2초 그물이 쓰는 대조. 목표 모니터의 오른쪽 변에 정확히 붙어 있는지 물리 좌표로 확인한다.
+    public bool IsPlacementDrifted()
+    {
+        if (!IsVisible) return false;
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero) return false;
+        if (!DisplayInfo.GetWindowRect(hwnd, out var cur)) return false;
+
+        var target = PickMonitor();
+        if (target.Work.Right == 0 && target.Work.Bottom == 0) return false;
+
+        return cur.Right != target.Work.Right
+               || cur.Top < target.Work.Top
+               || cur.Bottom > target.Work.Bottom
+               || Math.Abs(Width - BaseW) > 0.5
+               || Math.Abs(Height - BaseH) > 0.5;
     }
 
     public void ShowSidebar()
     {
-        Anchor();
+        // Show() 로 hwnd 를 먼저 확보해야 물리 좌표 배치가 가능하다. 투명도 0 이라 깜빡임은 없다.
         if (!IsVisible)
         {
             Opacity = 0;
             Show();
+            ApplyPlacement("show");
             BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(180)));
+        }
+        else
+        {
+            ApplyPlacement("show");
         }
         if (Pinned) Expand();
     }
@@ -136,11 +224,21 @@ public partial class MainWindow : Window
     private void OnStripMouseDown(object sender, MouseButtonEventArgs e)
     {
         try { DragMove(); } catch { }
-        var wa = SystemParameters.WorkArea;
-        Left = wa.Right - Width;
-        Top = Math.Max(wa.Top, Math.Min(Top, wa.Bottom - Height));
-        _savedTop = Top;
-        TopChanged?.Invoke(Top);
+
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero || !DisplayInfo.GetWindowRect(hwnd, out var cur)) return;
+
+        // 창 중심이 있는 모니터에 붙인다 — 보조 모니터로 끌어다 놓을 수 있어야 한다.
+        var mon = DisplayInfo.ForPoint(cur.Left + cur.Width / 2, cur.Top + cur.Height / 2);
+        _savedMonitor = mon.Name;
+        _savedPhysY = cur.Top;
+        ApplyPlacement("drag");
+
+        if (DisplayInfo.GetWindowRect(hwnd, out var final))
+        {
+            _savedPhysY = final.Top;
+            PlacementChanged?.Invoke(mon.Name, final.Top);
+        }
     }
 
     private Pill MakePill(string letter, string name, Color color)
