@@ -3,12 +3,19 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="ClaudeSidebar" WindowStyle="None" AllowsTransparency="True"
         Background="Transparent" Topmost="True" ShowInTaskbar="False"
-        ResizeMode="NoResize" Width="232" Height="320" ShowActivated="False">
+        ResizeMode="NoResize" Width="260" Height="320" ShowActivated="False">
+    <!-- 창 폭 260 중 왼쪽 여유는 패널 그림자가 잘리지 않게 두는 자리다.
+         투명 영역은 클릭이 그대로 통과하므로 다른 창을 방해하지 않는다. -->
     <StackPanel x:Name="RootPanel" Orientation="Horizontal"
                 HorizontalAlignment="Right" VerticalAlignment="Center">
-        <Border x:Name="DetailPanel" Width="202" CornerRadius="10" Background="#F51F1E1D"
-                BorderBrush="#26FFFFFF" BorderThickness="1" Margin="0,0,6,0"
-                Padding="12,8,12,8" Visibility="Hidden" VerticalAlignment="Center">
+        <!-- Windows 11 창 모양: 반경 8, 얇은 밝은 테두리, 은은한 그림자 -->
+        <Border x:Name="DetailPanel" Width="202" CornerRadius="8" Background="#F22B2B2B"
+                BorderBrush="#1FFFFFFF" BorderThickness="1" Margin="0,0,6,0"
+                Padding="12,9,12,9" Visibility="Hidden" VerticalAlignment="Center">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="14" ShadowDepth="2" Direction="270"
+                                  Color="#000000" Opacity="0.5" RenderingBias="Performance" />
+            </Border.Effect>
             <StackPanel x:Name="DetailRows" />
         </Border>
         <StackPanel x:Name="PillStrip" Margin="0,0,3,0" VerticalAlignment="Center" />

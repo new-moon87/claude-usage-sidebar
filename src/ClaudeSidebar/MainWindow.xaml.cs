@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
@@ -17,7 +18,7 @@ public partial class MainWindow : Window
     private const double PillH = 64;
     private const double RowBarW = 176;
     // 창의 논리 크기(DIP). 이 값은 절대 SetWindowPos 로 바꾸지 않는다 — 함정 ⑪ 참고.
-    private const double BaseW = 232;
+    private const double BaseW = 260;
     private const double BaseH = 320;
     private static readonly Color Red = Color.FromRgb(0xE2, 0x4B, 0x4A);
     private static readonly CultureInfo Korean = new("ko-KR");
@@ -66,6 +67,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        BuildHeader();
         _h = MakePill("H", "5시간 세션", Color.FromRgb(0x7F, 0x77, 0xDD));
         _w = MakePill("W", "주간 · 전체", Color.FromRgb(0xEF, 0x9F, 0x27));
         _f = MakePill("F", "주간 · Fable", Color.FromRgb(0x37, 0x8A, 0xDD));
@@ -343,6 +345,48 @@ public partial class MainWindow : Window
         return pill;
     }
 
+    private static string VersionText => "v" + UpdateChecker.CurrentVersion.ToString(3);
+
+    // 업데이트 날짜는 실행 파일의 수정 시각을 쓴다. 자동 교체가 zip 안의 시각을 그대로 남기므로
+    // 이 값이 곧 "이 버전이 이 PC 에 올라온 때"다. 빌드 시각을 따로 심을 필요가 없다.
+    private static string BuiltAtText()
+    {
+        try
+        {
+            if (Environment.ProcessPath is { } exe && File.Exists(exe))
+                return File.GetLastWriteTime(exe).ToString("yyyy-MM-dd") + " 업데이트";
+        }
+        catch { }
+        return "";
+    }
+
+    private void BuildHeader()
+    {
+        var head = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+        var ver = new TextBlock
+        {
+            Text = VersionText,
+            FontSize = 10,
+            Foreground = new SolidColorBrush(Color.FromRgb(0x88, 0x87, 0x80)),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        DockPanel.SetDock(ver, Dock.Right);
+        head.Children.Add(ver);
+        head.Children.Add(new TextBlock
+        {
+            Text = "Claude 사용량",
+            FontSize = 11.5,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xF1, 0xEF, 0xE8))
+        });
+        DetailRows.Children.Add(head);
+        DetailRows.Children.Add(new Border
+        {
+            Height = 1,
+            Background = new SolidColorBrush(Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF))
+        });
+    }
+
     private void BuildFooter()
     {
         DetailRows.Children.Add(new Border
@@ -387,6 +431,14 @@ public partial class MainWindow : Window
         dock.Children.Add(_footer);
         DetailRows.Children.Add(dock);
         UpdatePinVisual();
+
+        DetailRows.Children.Add(new TextBlock
+        {
+            Text = BuiltAtText(),
+            FontSize = 9.5,
+            Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x6A, 0x64)),
+            Margin = new Thickness(0, 2, 0, 0)
+        });
 
         _statusLine = new TextBlock
         {

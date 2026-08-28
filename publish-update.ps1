@@ -63,6 +63,9 @@ $repo = "new-moon87/claude-usage-sidebar"
 } | ConvertTo-Json -Depth 8 | Set-Content $manifest -Encoding utf8
 Write-Host "매니페스트 갱신: $manifest"
 
+# 배포 사이트(web/)도 같은 매니페스트를 본다. 같은 출처라 CORS 가 필요 없다.
+Copy-Item $manifest (Join-Path $root "web/version.json") -Force
+
 # 5) 커밋·푸시
 & git -C $root add -A
 & git -C $root commit -q -m "release $Version`n`n$($Notes -join "`n")"
