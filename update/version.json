@@ -1,13 +1,20 @@
 ﻿{
-    "version":  "0.1.1.0",
-    "downloadUrl":  "https://raw.githubusercontent.com/new-moon87/claude-usage-sidebar/main/update/ClaudeSidebar-0.1.1.0.zip",
-    "sha256":  "1CE4660AFC822AFFC91711C97FCF9D142F94EEDBFEE1932076267BFDF6AC8FEB",
+    "version":  "0.1.2.0",
+    "downloadUrl":  "https://raw.githubusercontent.com/new-moon87/claude-usage-sidebar/main/update/ClaudeSidebar-0.1.2.0.zip",
+    "sha256":  "B4B70665871B287048D70A4AFCD8F3149E34AD1407F2EF476C24D10462D1CBFF",
     "notes":  [
-                  "다중 모니터·혼합 DPI 에서 창이 안 보이거나 엉뚱한 자리에 뜨던 문제 수정,자동 업데이트 추가"
+                  "자체 포함 단일 exe 배포본은 자동 교체 대상에서 제외"
               ],
-    "releasedAt":  "2026-08-28 16:38",
+    "releasedAt":  "2026-08-28 16:40",
     "sizeMb":  0.1,
     "history":  [
+                    {
+                        "version":  "0.1.2.0",
+                        "releasedAt":  "2026-08-28 16:40",
+                        "notes":  [
+                                      "자체 포함 단일 exe 배포본은 자동 교체 대상에서 제외"
+                                  ]
+                    },
                     {
                         "version":  "0.1.1.0",
                         "releasedAt":  "2026-08-28 16:38",

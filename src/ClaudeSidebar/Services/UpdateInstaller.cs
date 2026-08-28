@@ -49,6 +49,15 @@ internal static class UpdateInstaller
             || CurrentExePath is not { } exe) return false;
 
         string dir = Path.GetDirectoryName(exe)!;
+
+        // 자체 포함 단일 exe 배포본은 갈아 끼우지 않는다. 업데이트 zip 은 framework-dependent 4파일이라,
+        // 런타임이 없는 PC 에서 바꿔 끼우면 앱이 아예 안 뜬다. (단일 파일에는 옆에 dll 이 없다.)
+        if (!File.Exists(Path.Combine(dir, "ClaudeSidebar.dll")))
+        {
+            Log.Write("[update] 단일 파일 배포본 — 자동 교체 건너뜀");
+            return false;
+        }
+
         string archive = exe + ".zip";
         var staged = new List<(string Target, string New)>();
         var moved = new List<(string Target, string Old)>();
