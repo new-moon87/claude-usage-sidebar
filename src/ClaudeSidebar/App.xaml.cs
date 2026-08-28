@@ -36,7 +36,8 @@ public partial class App : Application
         }
         base.OnStartup(e);
         Log.Write("=== app start ===");
-        Log.Write($"[build] {(System.Diagnostics.Debugger.IsAttached ? "debug-attached" : "no-debugger")} " +
+        Log.Write($"[build] v{UpdateChecker.CurrentVersion} " +
+                  $"{(System.Diagnostics.Debugger.IsAttached ? "debug-attached" : "no-debugger")} " +
                   $"exe={Environment.ProcessPath}");
         DisplayInfo.LogAll("start");
         _settings.Load();
@@ -122,6 +123,22 @@ public partial class App : Application
         UpdateVisibility();
         _ = RefreshAsync(force: true);
         _tickTimer.Start();
+
+        UpdateInstaller.CleanupPreviousVersion();
+        _ = CheckUpdateAsync();
+    }
+
+    // 시작할 때만 갈아 끼운다. 쓰는 도중 재시작하면 사용자가 시킨 적 없는 일로 화면이 사라진다.
+    private async Task CheckUpdateAsync()
+    {
+        var result = await new UpdateChecker(_http).CheckAsync();
+        if (!result.IsUpdateAvailable) return;
+
+        // 새 인스턴스가 단일 인스턴스 뮤텍스에 막혀 즉시 죽지 않도록 먼저 놓는다.
+        // ReleaseMutex 는 만든 스레드에서만 되므로 UI 스레드에서 호출해야 한다(여기가 그 스레드다).
+        try { _mutex?.ReleaseMutex(); } catch (Exception ex) { Log.Write("[update] 뮤텍스 해제 실패: " + ex.GetType().Name); }
+
+        if (await UpdateInstaller.ApplyAsync(result, _http)) Shutdown();
     }
 
     // 디스플레이 구성이 흔들릴 때 여러 시점에서 다시 확인한다. 마지막 값이 최종이다.

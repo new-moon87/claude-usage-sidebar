@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -11,6 +11,8 @@
     <RootNamespace>ClaudeSidebar</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- 자동 업데이트 비교 기준. publish-update.ps1 이 올릴 때마다 올린다. -->
+    <Version>0.1.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,3 +21,4 @@
   </ItemGroup>
 
 </Project>
+
