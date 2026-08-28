@@ -16,8 +16,9 @@ $ErrorActionPreference = "Stop"
 $root = $PSScriptRoot
 $csproj = Join-Path $root "src\ClaudeSidebar\ClaudeSidebar.csproj"
 $dist = Join-Path $root "dist"
+$webDir = Join-Path $root "web"
 $updateDir = Join-Path $root "update"
-$manifest = Join-Path $updateDir "version.json"
+$manifest = Join-Path $webDir "version.json"
 
 if ($Version -notmatch '^\d+\.\d+\.\d+\.\d+$') { throw "버전은 x.y.z.w 형식이어야 합니다: $Version" }
 
@@ -33,9 +34,9 @@ Start-Sleep -Milliseconds 500
 if ($LASTEXITCODE -ne 0) { throw "빌드 실패" }
 
 # 3) 압축 (pdb 는 뺀다)
-New-Item -ItemType Directory -Force -Path $updateDir | Out-Null
-Get-ChildItem $updateDir -Filter "ClaudeSidebar-*.zip" | Remove-Item -Force
-$zip = Join-Path $updateDir "ClaudeSidebar-$Version.zip"
+New-Item -ItemType Directory -Force -Path $webDir, $updateDir | Out-Null
+Get-ChildItem $webDir, $updateDir -Filter "ClaudeSidebar-*.zip" | Remove-Item -Force
+$zip = Join-Path $webDir "ClaudeSidebar-$Version.zip"
 $files = Get-ChildItem $dist -File | Where-Object { $_.Extension -ne ".pdb" }
 Compress-Archive -Path $files.FullName -DestinationPath $zip -Force
 $sha = (Get-FileHash $zip -Algorithm SHA256).Hash
@@ -51,10 +52,10 @@ if (Test-Path $manifest) {
 $entry = [ordered]@{ version = $Version; releasedAt = (Get-Date -Format "yyyy-MM-dd HH:mm"); notes = @($Notes) }
 $history = @($entry) + $history
 
-$repo = "new-moon87/claude-usage-sidebar"
+$site = "https://claude-usage-sidebar.vercel.app"
 [ordered]@{
     version     = $Version
-    downloadUrl = "https://raw.githubusercontent.com/$repo/main/update/ClaudeSidebar-$Version.zip"
+    downloadUrl = "$site/ClaudeSidebar-$Version.zip"
     sha256      = $sha
     notes       = @($Notes)
     releasedAt  = $entry.releasedAt
@@ -63,8 +64,10 @@ $repo = "new-moon87/claude-usage-sidebar"
 } | ConvertTo-Json -Depth 8 | Set-Content $manifest -Encoding utf8
 Write-Host "매니페스트 갱신: $manifest"
 
-# 배포 사이트(web/)도 같은 매니페스트를 본다. 같은 출처라 CORS 가 필요 없다.
-Copy-Item $manifest (Join-Path $root "web/version.json") -Force
+# ponytail: 0.1.2.0 이하 설치본은 아직 raw 의 update/version.json 을 본다.
+# 그 클라이언트들이 새 버전으로 넘어올 수 있게 당분간 같이 써 준다. 몇 번 배포 뒤 지울 것.
+Copy-Item $manifest (Join-Path $updateDir "version.json") -Force
+Copy-Item $zip $updateDir -Force
 
 # 5) 커밋·푸시
 & git -C $root add -A

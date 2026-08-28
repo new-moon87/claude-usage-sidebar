@@ -36,8 +36,7 @@ internal sealed class VersionManifest
 // ManifestUrl 을 비우면 이 앱은 업데이트 관련 통신을 전혀 하지 않는다.
 internal sealed class UpdateChecker(HttpClient http)
 {
-    public const string ManifestUrl =
-        "https://raw.githubusercontent.com/new-moon87/claude-usage-sidebar/main/update/version.json";
+    public const string ManifestUrl = "https://claude-usage-sidebar.vercel.app/version.json";
 
     public static Version CurrentVersion { get; } =
         Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0, 0);
