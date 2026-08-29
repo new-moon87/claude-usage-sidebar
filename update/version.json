@@ -1,13 +1,20 @@
 ﻿{
-    "version":  "0.1.10.0",
-    "downloadUrl":  "https://claude-usage-sidebar.vercel.app/ClaudeSidebar-0.1.10.0.zip",
-    "sha256":  "CBB108A510B6A8AEA00824805D729132CA5B352FDAB377A90B2EA42A16CA8A75",
+    "version":  "0.1.11.0",
+    "downloadUrl":  "https://claude-usage-sidebar.vercel.app/ClaudeSidebar-0.1.11.0.zip",
+    "sha256":  "54CD5322DC02C9076196134A18C0823E6F7776979CC8BE180A96F3136BEDB606",
     "notes":  [
-                  "카피라이트를 두 줄로 나눠 트레이 메뉴 폭 축소"
+                  "카피라이트 문구 간소화"
               ],
-    "releasedAt":  "2026-08-30 00:15",
+    "releasedAt":  "2026-08-30 00:47",
     "sizeMb":  0.1,
     "history":  [
+                    {
+                        "version":  "0.1.11.0",
+                        "releasedAt":  "2026-08-30 00:47",
+                        "notes":  [
+                                      "카피라이트 문구 간소화"
+                                  ]
+                    },
                     {
                         "version":  "0.1.10.0",
                         "releasedAt":  "2026-08-30 00:15",
