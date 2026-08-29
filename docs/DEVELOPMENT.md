@@ -281,6 +281,15 @@ _pinBtn.Text = Pinned ? "\uE77A" : "\uE718";   // Segoe MDL2 Assets: Unpin / Pin
 ## 7. 오케스트레이션 (App.xaml.cs)
 
 - `ShutdownMode="OnExplicitShutdown"`, Mutex `"ClaudeSidebar_SingleInstance"`로 중복 실행 차단.
+
+> **함정 ⑭ (자기 교체와 단일 인스턴스 뮤텍스)** — 자동 업데이트가 새 exe 를 띄우기 전에 뮤텍스를
+> **`ReleaseMutex()` 만 하면 안 된다.** 그것은 소유권만 놓을 뿐이고, 이름 있는 뮤텍스는 핸들이 전부
+> 닫혀야 사라진다. 핸들을 쥔 채 새 프로세스를 띄우면 그쪽은 `createdNew == false` 를 보고
+> **로그 한 줄 남기지 않고 종료**한다 — 사용자에게는 "업데이트하더니 앱이 사라졌다"로 보인다.
+> 구 프로세스가 먼저 죽으면 우연히 성공하므로 몇 번은 멀쩡히 넘어가다가 어느 날 걸린다
+> (실제로 0.1.3.0 → 0.1.4.0 에서 걸렸다).
+> **`ReleaseMutex()` → `Dispose()` → `null` 까지 한 뒤에 새 exe 를 띄운다.**
+> 검증은 "업데이트 후 새 버전의 `=== app start ===` 가 로그에 찍히고 프로세스가 살아 있는가"로 한다.
 - 타이머: 프로세스 감지 3초 / 사용량 폴링 60초(표시 중일 때만) / 카운트다운 재계산 30초 / **배치 그물 2초**(구성 지문 + 실제 좌표 대조).
 - `SystemEvents.PowerModeChanged` Resume 시 즉시 갱신 + 재배치 (`Dispatcher.Invoke`로 감쌀 것).
 - `SystemEvents.DisplaySettingsChanged` 구독 → 함정 ⑪의 다단 재확인 경로로 보낼 것.
