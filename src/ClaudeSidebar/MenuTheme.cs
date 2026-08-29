@@ -43,6 +43,10 @@ internal sealed class MenuTheme : WF.ToolStripRenderer
     private const int ItemPadRightDip = 20;
     private const int ItemPadYDip = 4;
 
+    // 버전·카피라이트 줄은 한 덩어리로 붙여 둔다. 클릭 대상이 아니라 행 높이가 필요 없다.
+    public const string CaptionTag = "caption";
+    private const int CaptionPadYDip = 0;
+
     private static int S(WF.ToolStrip? ts, double dip) => (int)Math.Round(dip * (ts?.DeviceDpi ?? 96) / 96.0);
 
     public static void Apply(WF.ContextMenuStrip menu)
@@ -70,11 +74,11 @@ internal sealed class MenuTheme : WF.ToolStripRenderer
         // 여백은 DPI 를 알아야 정할 수 있다. 창이 뜨기 직전(크기 계산 전)에 넣는다.
         menu.Opening += (_, _) =>
         {
-            var pad = new WF.Padding(
-                S(menu, ItemPadLeftDip), S(menu, ItemPadYDip),
-                S(menu, ItemPadRightDip), S(menu, ItemPadYDip));
+            int left = S(menu, ItemPadLeftDip), right = S(menu, ItemPadRightDip);
+            var pad = new WF.Padding(left, S(menu, ItemPadYDip), right, S(menu, ItemPadYDip));
+            var captionPad = new WF.Padding(left, S(menu, CaptionPadYDip), right, S(menu, CaptionPadYDip));
             foreach (var item in menu.Items.OfType<WF.ToolStripMenuItem>())
-                item.Padding = pad;
+                item.Padding = item.Tag as string == CaptionTag ? captionPad : pad;
         };
     }
 

@@ -26,7 +26,7 @@ public class TrayIcon : IDisposable
         // 버전·카피라이트는 맨 아래 둔다(index 메모와 같은 자리). 누를 일이 없으므로 비활성.
         var captionFont = new Font(menu.Font.FontFamily, 8F);
         WF.ToolStripMenuItem Caption(string text) =>
-            new(text) { Enabled = false, Font = captionFont };
+            new(text) { Enabled = false, Font = captionFont, Tag = MenuTheme.CaptionTag };
 
         var date = UpdateChecker.BuiltAtDate();
         var about = Caption(date.Length > 0

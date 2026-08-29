@@ -1,13 +1,20 @@
 ﻿{
-    "version":  "0.1.12.0",
-    "downloadUrl":  "https://claude-usage-sidebar.vercel.app/ClaudeSidebar-0.1.12.0.zip",
-    "sha256":  "CBEC85A9D56B99A9F9F2B8E9E6F1CECB1CA49711D53B75031518A36740E448B2",
+    "version":  "0.1.13.0",
+    "downloadUrl":  "https://claude-usage-sidebar.vercel.app/ClaudeSidebar-0.1.13.0.zip",
+    "sha256":  "9583613299D0D2CCDF9CDDC7B8CAA8BECA842F05F438AD659B4A51CA10FC5495",
     "notes":  [
-                  "트레이 메뉴 레이아웃 정리 — 버전·카피라이트를 아래로, 여백과 체크 위치 조정"
+                  "버전·카피라이트 줄을 한 덩어리로 압축"
               ],
-    "releasedAt":  "2026-08-30 01:09",
+    "releasedAt":  "2026-08-30 01:12",
     "sizeMb":  0.1,
     "history":  [
+                    {
+                        "version":  "0.1.13.0",
+                        "releasedAt":  "2026-08-30 01:12",
+                        "notes":  [
+                                      "버전·카피라이트 줄을 한 덩어리로 압축"
+                                  ]
+                    },
                     {
                         "version":  "0.1.12.0",
                         "releasedAt":  "2026-08-30 01:09",
