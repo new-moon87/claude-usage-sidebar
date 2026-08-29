@@ -1,13 +1,20 @@
 ﻿{
-    "version":  "0.1.6.0",
-    "downloadUrl":  "https://claude-usage-sidebar.vercel.app/ClaudeSidebar-0.1.6.0.zip",
-    "sha256":  "703DA838C24D05FD4ED26A05B378FDD21598D7270C2CF46B0BC120879029FB35",
+    "version":  "0.1.7.0",
+    "downloadUrl":  "https://claude-usage-sidebar.vercel.app/ClaudeSidebar-0.1.7.0.zip",
+    "sha256":  "9FA084ABD3F44F02B14CE531D60D8F4E2FF624871D9725ED06B00E5307BE8DFD",
     "notes":  [
-                  "내려받기 페이지 문구 정리"
+                  "트레이 메뉴에 카피라이트 표기 추가"
               ],
-    "releasedAt":  "2026-08-29 17:30",
+    "releasedAt":  "2026-08-29 17:35",
     "sizeMb":  0.1,
     "history":  [
+                    {
+                        "version":  "0.1.7.0",
+                        "releasedAt":  "2026-08-29 17:35",
+                        "notes":  [
+                                      "트레이 메뉴에 카피라이트 표기 추가"
+                                  ]
+                    },
                     {
                         "version":  "0.1.6.0",
                         "releasedAt":  "2026-08-29 17:30",
