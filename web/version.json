@@ -1,13 +1,20 @@
 ﻿{
-    "version":  "0.1.9.0",
-    "downloadUrl":  "https://claude-usage-sidebar.vercel.app/ClaudeSidebar-0.1.9.0.zip",
-    "sha256":  "391F61D64216CA491F222BA0351F588E0E777586DCD0F87E598E3196BAF40B1F",
+    "version":  "0.1.10.0",
+    "downloadUrl":  "https://claude-usage-sidebar.vercel.app/ClaudeSidebar-0.1.10.0.zip",
+    "sha256":  "CBB108A510B6A8AEA00824805D729132CA5B352FDAB377A90B2EA42A16CA8A75",
     "notes":  [
-                  "트레이 메뉴 다듬기 — 체크 여백과 크기 조정, 설명 줄 정렬로 메뉴 폭 축소"
+                  "카피라이트를 두 줄로 나눠 트레이 메뉴 폭 축소"
               ],
-    "releasedAt":  "2026-08-30 00:12",
+    "releasedAt":  "2026-08-30 00:15",
     "sizeMb":  0.1,
     "history":  [
+                    {
+                        "version":  "0.1.10.0",
+                        "releasedAt":  "2026-08-30 00:15",
+                        "notes":  [
+                                      "카피라이트를 두 줄로 나눠 트레이 메뉴 폭 축소"
+                                  ]
+                    },
                     {
                         "version":  "0.1.9.0",
                         "releasedAt":  "2026-08-30 00:12",

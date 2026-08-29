@@ -34,8 +34,8 @@ public class TrayIcon : IDisposable
 
         // 카피라이트. 트레이 메뉴는 SVG 를 못 쓰는 매체라 봉투 아이콘 대신 원문자 U+24D4 를 쓴다.
         // 인코딩 계층을 타다 글자가 깨지는 자리라 이스케이프로 박는다.
-        var copyrightItem = Caption(
-            "\u00A9 2026 Lee-wonrae. All rights reserved.  \u24D4 new_moon@kakao.com");
+        var copyrightItem = Caption("\u00A9 2026 Lee-wonrae. All rights reserved.");
+        var contactItem = Caption("\u24D4 new_moon@kakao.com");
 
         var siteItem = new WF.ToolStripMenuItem("다운로드 사이트 열기");
         siteItem.Click += (_, _) => OpenSite();
@@ -58,6 +58,7 @@ public class TrayIcon : IDisposable
         menu.Items.Add(about);
         if (builtAtItem is not null) menu.Items.Add(builtAtItem);
         menu.Items.Add(copyrightItem);
+        menu.Items.Add(contactItem);
         menu.Items.Add(new WF.ToolStripSeparator());
         menu.Items.Add(refreshItem);
         menu.Items.Add(reloginItem);
