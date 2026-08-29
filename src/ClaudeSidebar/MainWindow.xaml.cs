@@ -345,27 +345,12 @@ public partial class MainWindow : Window
         return pill;
     }
 
-    private static string VersionText => "v" + UpdateChecker.CurrentVersion.ToString(3);
-
-    // 업데이트 날짜는 실행 파일의 수정 시각을 쓴다. 자동 교체가 zip 안의 시각을 그대로 남기므로
-    // 이 값이 곧 "이 버전이 이 PC 에 올라온 때"다. 빌드 시각을 따로 심을 필요가 없다.
-    private static string BuiltAtText()
-    {
-        try
-        {
-            if (Environment.ProcessPath is { } exe && File.Exists(exe))
-                return File.GetLastWriteTime(exe).ToString("yyyy-MM-dd") + " 업데이트";
-        }
-        catch { }
-        return "";
-    }
-
     private void BuildHeader()
     {
         var head = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
         var ver = new TextBlock
         {
-            Text = VersionText,
+            Text = UpdateChecker.VersionText,
             FontSize = 10,
             Foreground = new SolidColorBrush(Color.FromRgb(0x88, 0x87, 0x80)),
             VerticalAlignment = VerticalAlignment.Center
@@ -434,7 +419,7 @@ public partial class MainWindow : Window
 
         DetailRows.Children.Add(new TextBlock
         {
-            Text = BuiltAtText(),
+            Text = UpdateChecker.BuiltAtText(),
             FontSize = 9.5,
             Foreground = new SolidColorBrush(Color.FromRgb(0x6B, 0x6A, 0x64)),
             Margin = new Thickness(0, 2, 0, 0)

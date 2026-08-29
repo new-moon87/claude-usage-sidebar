@@ -1,4 +1,4 @@
-using System.Drawing;
+﻿using System.Drawing;
 using WF = System.Windows.Forms;
 
 namespace ClaudeSidebar;
@@ -17,6 +17,16 @@ public class TrayIcon : IDisposable
     {
         var menu = new WF.ContextMenuStrip();
 
+        // 버전과 이 PC 에 올라온 날짜. 누를 일이 없으므로 비활성 항목으로 둔다.
+        var about = new WF.ToolStripMenuItem($"Claude 사용량 {UpdateChecker.VersionText}") { Enabled = false };
+        var builtAt = UpdateChecker.BuiltAtText();
+        var builtAtItem = builtAt.Length > 0
+            ? new WF.ToolStripMenuItem(builtAt) { Enabled = false }
+            : null;
+
+        var siteItem = new WF.ToolStripMenuItem("다운로드 사이트 열기");
+        siteItem.Click += (_, _) => OpenSite();
+
         var refreshItem = new WF.ToolStripMenuItem("지금 새로고침");
         refreshItem.Click += (_, _) => RefreshRequested?.Invoke();
 
@@ -32,8 +42,13 @@ public class TrayIcon : IDisposable
         var exitItem = new WF.ToolStripMenuItem("종료");
         exitItem.Click += (_, _) => ExitRequested?.Invoke();
 
+        menu.Items.Add(about);
+        if (builtAtItem is not null) menu.Items.Add(builtAtItem);
+        menu.Items.Add(new WF.ToolStripSeparator());
         menu.Items.Add(refreshItem);
         menu.Items.Add(reloginItem);
+        menu.Items.Add(siteItem);
+        menu.Items.Add(new WF.ToolStripSeparator());
         menu.Items.Add(forceShowItem);
         menu.Items.Add(autostartItem);
         menu.Items.Add(new WF.ToolStripSeparator());
@@ -42,11 +57,32 @@ public class TrayIcon : IDisposable
         _icon = new WF.NotifyIcon
         {
             Icon = CreateIcon(),
-            Text = "Claude 사용량 사이드바",
+            Text = $"Claude 사용량 사이드바 {UpdateChecker.VersionText}",
             Visible = true,
             ContextMenuStrip = menu
         };
         _icon.DoubleClick += (_, _) => RefreshRequested?.Invoke();
+
+        // 메뉴가 실제로 어떻게 구성됐는지 남긴다 — 트레이 메뉴는 눈으로만 확인되는 곳이라
+        // 항목이 빠져도 조용히 지나간다.
+        Log.Write("[tray] 메뉴: " + string.Join(" / ",
+            menu.Items.OfType<WF.ToolStripItem>().Select(i => i is WF.ToolStripSeparator ? "—" : i.Text)));
+    }
+
+    // 배포 사이트를 기본 브라우저로 연다. 실패해도 트레이가 죽으면 안 된다.
+    private static void OpenSite()
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(UpdateChecker.SiteUrl)
+            {
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Write("[tray] 사이트 열기 실패: " + ex.Message);
+        }
     }
 
     private static Icon CreateIcon()

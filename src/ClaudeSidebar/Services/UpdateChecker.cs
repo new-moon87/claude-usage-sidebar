@@ -1,5 +1,6 @@
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.IO;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -38,8 +39,25 @@ internal sealed class UpdateChecker(HttpClient http)
 {
     public const string ManifestUrl = "https://claude-usage-sidebar.vercel.app/version.json";
 
+    public const string SiteUrl = "https://claude-usage-sidebar.vercel.app";
+
     public static Version CurrentVersion { get; } =
         Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0, 0);
+
+    public static string VersionText => "v" + CurrentVersion.ToString(3);
+
+    // 업데이트 날짜는 실행 파일의 수정 시각을 쓴다. 자동 교체가 zip 안의 시각을 그대로 남기므로
+    // 이 값이 곧 "이 버전이 이 PC 에 올라온 때"다. 빌드 시각을 따로 심을 필요가 없다.
+    public static string BuiltAtText()
+    {
+        try
+        {
+            if (Environment.ProcessPath is { } exe && File.Exists(exe))
+                return File.GetLastWriteTime(exe).ToString("yyyy-MM-dd") + " 업데이트";
+        }
+        catch { }
+        return "";
+    }
 
     public string Url { get; init; } = ManifestUrl;
 
