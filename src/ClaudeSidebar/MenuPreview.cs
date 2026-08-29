@@ -21,7 +21,7 @@ internal static class MenuPreview
             StartPosition = WF.FormStartPosition.Manual,
             ShowInTaskbar = false,
             BackColor = Color.FromArgb(0xED, 0xED, 0xE8),
-            Bounds = new Rectangle(40, 40, 900, 700)
+            Bounds = new Rectangle(20, 20, 1400, 900)
         };
         backdrop.Show();
         backdrop.Activate();
@@ -32,17 +32,23 @@ internal static class MenuPreview
         // 소유 창 없이 띄우면 활성화를 잃는 순간 스스로 닫힌다. 배경판을 소유자로 준다.
         menu.Show(backdrop, new Point(40, 40));
 
+        // 다른 창이 포커스를 가져가면 메뉴가 스스로 닫힌다. 몇 번 다시 띄워 본다.
+        int attempts = 0;
         var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(700) };
         timer.Tick += (_, _) =>
         {
+            if (!menu.Visible && ++attempts <= 4)
+            {
+                Log.Write($"[preview] 메뉴가 닫혀 있어 다시 띄운다 ({attempts})");
+                backdrop.Activate();
+                menu.Show(backdrop, new Point(40, 40));
+                return;
+            }
+
             timer.Stop();
             try
             {
-                if (!menu.Visible)
-                {
-                    Log.Write("[preview] 메뉴가 닫혀 있어 찍지 못했다");
-                    throw new InvalidOperationException("menu not visible");
-                }
+                if (!menu.Visible) throw new InvalidOperationException("menu not visible");
                 var r = Rectangle.Inflate(menu.Bounds, 16, 16);
                 using var bmp = new Bitmap(r.Width, r.Height);
                 using (var g = Graphics.FromImage(bmp))

@@ -24,16 +24,18 @@ public class TrayIcon : IDisposable
         MenuTheme.Apply(menu);
 
         // 버전과 이 PC 에 올라온 날짜. 누를 일이 없으므로 비활성 항목으로 둔다.
-        var about = new WF.ToolStripMenuItem($"Claude 사용량 {UpdateChecker.VersionText}") { Enabled = false };
+        // 설명 줄은 한 단계 작은 글꼴로 둔다. 카피라이트가 가장 긴 줄이라 이게 메뉴 폭을 정한다.
+        var captionFont = new Font(menu.Font.FontFamily, 7.5F);
+        WF.ToolStripMenuItem Caption(string text) => new MenuTheme.CaptionItem(text) { Font = captionFont };
+
+        var about = Caption($"Claude 사용량 {UpdateChecker.VersionText}");
         var builtAt = UpdateChecker.BuiltAtText();
-        var builtAtItem = builtAt.Length > 0
-            ? new WF.ToolStripMenuItem(builtAt) { Enabled = false }
-            : null;
+        var builtAtItem = builtAt.Length > 0 ? Caption(builtAt) : null;
 
         // 카피라이트. 트레이 메뉴는 SVG 를 못 쓰는 매체라 봉투 아이콘 대신 원문자 U+24D4 를 쓴다.
         // 인코딩 계층을 타다 글자가 깨지는 자리라 이스케이프로 박는다.
-        var copyrightItem = new WF.ToolStripMenuItem(
-            "\u00A9 2026 Lee-wonrae. All rights reserved.  \u24D4 new_moon@kakao.com") { Enabled = false };
+        var copyrightItem = Caption(
+            "\u00A9 2026 Lee-wonrae. All rights reserved.  \u24D4 new_moon@kakao.com");
 
         var siteItem = new WF.ToolStripMenuItem("다운로드 사이트 열기");
         siteItem.Click += (_, _) => OpenSite();

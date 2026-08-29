@@ -1,13 +1,20 @@
 ﻿{
-    "version":  "0.1.8.0",
-    "downloadUrl":  "https://claude-usage-sidebar.vercel.app/ClaudeSidebar-0.1.8.0.zip",
-    "sha256":  "4FA1934924BB6E7F6DE0F4664B0C2C22D92C20DBEA368333B4B27BC204DC66AD",
+    "version":  "0.1.9.0",
+    "downloadUrl":  "https://claude-usage-sidebar.vercel.app/ClaudeSidebar-0.1.9.0.zip",
+    "sha256":  "391F61D64216CA491F222BA0351F588E0E777586DCD0F87E598E3196BAF40B1F",
     "notes":  [
-                  "트레이 메뉴를 Windows 11 스타일로 (둥근 모서리, 보라색 체크, 들여쓴 구분선)"
+                  "트레이 메뉴 다듬기 — 체크 여백과 크기 조정, 설명 줄 정렬로 메뉴 폭 축소"
               ],
-    "releasedAt":  "2026-08-29 17:42",
+    "releasedAt":  "2026-08-30 00:12",
     "sizeMb":  0.1,
     "history":  [
+                    {
+                        "version":  "0.1.9.0",
+                        "releasedAt":  "2026-08-30 00:12",
+                        "notes":  [
+                                      "트레이 메뉴 다듬기 — 체크 여백과 크기 조정, 설명 줄 정렬로 메뉴 폭 축소"
+                                  ]
+                    },
                     {
                         "version":  "0.1.8.0",
                         "releasedAt":  "2026-08-29 17:42",

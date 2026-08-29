@@ -28,7 +28,37 @@ internal sealed class MenuTheme : WF.ToolStripRenderer
     private const int ItemInsetYDip = 1;
     private const int SeparatorInsetDip = 12;
 
+    // 체크는 왼쪽에 여백을 두고 조금 작게 그린다 — 칸 안에 체크가 들어앉은 느낌을 준다.
+    private const int CheckLeftPadDip = 7;
+    private const int CheckWidthDip = 10;
+    private const int CheckHeightDip = 8;
+
+    // 버전·카피라이트 같은 설명 줄. 체크 칸만큼 들여쓰지 않고 왼쪽에 붙여 폭 낭비를 줄인다.
+    public const string CaptionTag = "caption";
+    private const int CaptionLeftDip = 10;
+
     private static int S(WF.ToolStrip? ts, double dip) => (int)Math.Round(dip * (ts?.DeviceDpi ?? 96) / 96.0);
+
+    /// 설명 줄(버전·날짜·카피라이트) 전용 항목.
+    /// 체크 칸을 쓰지 않으므로 그만큼 폭도 요구하지 않는다 — 기본 항목을 쓰면
+    /// 가장 긴 이 줄이 쓰지도 않는 여백까지 끌고 와 메뉴가 불필요하게 넓어진다.
+    internal sealed class CaptionItem : WF.ToolStripMenuItem
+    {
+        public CaptionItem(string text) : base(text)
+        {
+            Enabled = false;
+            Tag = CaptionTag;
+        }
+
+        public override Size GetPreferredSize(Size constrainingSize)
+        {
+            var b = base.GetPreferredSize(constrainingSize);
+            var text = WF.TextRenderer.MeasureText(Text, Font);
+            int dpi = Owner?.DeviceDpi ?? 96;
+            int pad = (int)Math.Round((CaptionLeftDip + 14) * dpi / 96.0);
+            return new Size(Math.Min(b.Width, text.Width + pad), b.Height);
+        }
+    }
 
     public static void Apply(WF.ContextMenuStrip menu)
     {
@@ -116,6 +146,16 @@ internal sealed class MenuTheme : WF.ToolStripRenderer
     protected override void OnRenderItemText(WF.ToolStripItemTextRenderEventArgs e)
     {
         e.TextColor = e.Item.Enabled ? TextColor : TextDisabled;
+
+        // 설명 줄은 체크 칸을 비워 두지 않고 왼쪽 끝에서 시작한다.
+        if (e.Item.Tag as string == CaptionTag)
+        {
+            int left = S(e.ToolStrip, CaptionLeftDip);
+            var r = e.TextRectangle;
+            e.TextRectangle = new Rectangle(left, r.Y, Math.Max(1, r.Right - left), r.Height);
+            e.TextFormat = (e.TextFormat & ~WF.TextFormatFlags.HorizontalCenter) | WF.TextFormatFlags.Left;
+        }
+
         base.OnRenderItemText(e);
     }
 
@@ -123,11 +163,13 @@ internal sealed class MenuTheme : WF.ToolStripRenderer
     protected override void OnRenderItemCheck(WF.ToolStripItemImageRenderEventArgs e)
     {
         var b = e.ImageRectangle;
-        float scale = Math.Min(b.Width / 11f, b.Height / 9f);
-        float w = 11 * scale, h = 9 * scale;
-        float ox = b.Left + (b.Width - w) / 2f, oy = b.Top + (b.Height - h) / 2f;
+        float w = S(e.ToolStrip, CheckWidthDip);
+        float h = S(e.ToolStrip, CheckHeightDip);
+        float ox = b.Left + S(e.ToolStrip, CheckLeftPadDip);
+        float oy = b.Top + (b.Height - h) / 2f;
+        float sx = w / 11f, sy = h / 9f;
 
-        PointF P(float x, float y) => new(ox + x * scale, oy + y * scale);
+        PointF P(float x, float y) => new(ox + x * sx, oy + y * sy);
         var pts = new[]
         {
             P(0, 4.5f), P(3.6f, 8f), P(11f, 0.6f), P(9.7f, 0f), P(3.6f, 6f), P(1f, 3.6f)
