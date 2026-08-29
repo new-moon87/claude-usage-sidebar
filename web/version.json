@@ -1,13 +1,20 @@
 ﻿{
-    "version":  "0.1.7.0",
-    "downloadUrl":  "https://claude-usage-sidebar.vercel.app/ClaudeSidebar-0.1.7.0.zip",
-    "sha256":  "9FA084ABD3F44F02B14CE531D60D8F4E2FF624871D9725ED06B00E5307BE8DFD",
+    "version":  "0.1.8.0",
+    "downloadUrl":  "https://claude-usage-sidebar.vercel.app/ClaudeSidebar-0.1.8.0.zip",
+    "sha256":  "4FA1934924BB6E7F6DE0F4664B0C2C22D92C20DBEA368333B4B27BC204DC66AD",
     "notes":  [
-                  "트레이 메뉴에 카피라이트 표기 추가"
+                  "트레이 메뉴를 Windows 11 스타일로 (둥근 모서리, 보라색 체크, 들여쓴 구분선)"
               ],
-    "releasedAt":  "2026-08-29 17:35",
+    "releasedAt":  "2026-08-29 17:42",
     "sizeMb":  0.1,
     "history":  [
+                    {
+                        "version":  "0.1.8.0",
+                        "releasedAt":  "2026-08-29 17:42",
+                        "notes":  [
+                                      "트레이 메뉴를 Windows 11 스타일로 (둥근 모서리, 보라색 체크, 들여쓴 구분선)"
+                                  ]
+                    },
                     {
                         "version":  "0.1.7.0",
                         "releasedAt":  "2026-08-29 17:35",

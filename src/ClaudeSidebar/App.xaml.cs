@@ -28,6 +28,14 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        // 진단 모드는 상주하지 않는다. 뮤텍스도 잡지 않으므로 앱이 떠 있어도 돌릴 수 있다.
+        if (e.Args.Length >= 2 && e.Args[0] == "--menu-preview")
+        {
+            base.OnStartup(e);
+            MenuPreview.Render(e.Args[1], Shutdown);
+            return;
+        }
+
         _mutex = new Mutex(true, "ClaudeSidebar_SingleInstance", out bool createdNew);
         if (!createdNew)
         {

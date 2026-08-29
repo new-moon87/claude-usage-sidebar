@@ -6,6 +6,10 @@ namespace ClaudeSidebar;
 public class TrayIcon : IDisposable
 {
     private readonly WF.NotifyIcon _icon;
+    private readonly WF.ContextMenuStrip _menu;
+
+    /// 진단(--menu-preview)에서 실제 메뉴를 그대로 띄우기 위해 노출한다.
+    public WF.ContextMenuStrip Menu => _menu;
 
     public event Action? RefreshRequested;
     public event Action? ReloginRequested;
@@ -13,9 +17,11 @@ public class TrayIcon : IDisposable
     public event Action<bool>? AutostartChanged;
     public event Action? ExitRequested;
 
-    public TrayIcon(bool forceShow, bool autostart)
+    public TrayIcon(bool forceShow, bool autostart, bool visible = true)
     {
         var menu = new WF.ContextMenuStrip();
+        _menu = menu;
+        MenuTheme.Apply(menu);
 
         // 버전과 이 PC 에 올라온 날짜. 누를 일이 없으므로 비활성 항목으로 둔다.
         var about = new WF.ToolStripMenuItem($"Claude 사용량 {UpdateChecker.VersionText}") { Enabled = false };
@@ -64,7 +70,7 @@ public class TrayIcon : IDisposable
         {
             Icon = CreateIcon(),
             Text = $"Claude 사용량 사이드바 {UpdateChecker.VersionText}",
-            Visible = true,
+            Visible = visible,
             ContextMenuStrip = menu
         };
         _icon.DoubleClick += (_, _) => RefreshRequested?.Invoke();
