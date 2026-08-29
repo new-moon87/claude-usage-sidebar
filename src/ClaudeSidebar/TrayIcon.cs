@@ -23,14 +23,15 @@ public class TrayIcon : IDisposable
         _menu = menu;
         MenuTheme.Apply(menu);
 
-        // 버전과 이 PC 에 올라온 날짜. 누를 일이 없으므로 비활성 항목으로 둔다.
-        // 설명 줄은 한 단계 작은 글꼴로 둔다. 카피라이트가 가장 긴 줄이라 이게 메뉴 폭을 정한다.
-        var captionFont = new Font(menu.Font.FontFamily, 7.5F);
-        WF.ToolStripMenuItem Caption(string text) => new MenuTheme.CaptionItem(text) { Font = captionFont };
+        // 버전·카피라이트는 맨 아래 둔다(index 메모와 같은 자리). 누를 일이 없으므로 비활성.
+        var captionFont = new Font(menu.Font.FontFamily, 8F);
+        WF.ToolStripMenuItem Caption(string text) =>
+            new(text) { Enabled = false, Font = captionFont };
 
-        var about = Caption($"Claude 사용량 {UpdateChecker.VersionText}");
-        var builtAt = UpdateChecker.BuiltAtText();
-        var builtAtItem = builtAt.Length > 0 ? Caption(builtAt) : null;
+        var date = UpdateChecker.BuiltAtDate();
+        var about = Caption(date.Length > 0
+            ? $"버전 {UpdateChecker.CurrentVersion} ({date})"
+            : $"버전 {UpdateChecker.CurrentVersion}");
 
         // 카피라이트. 트레이 메뉴는 SVG 를 못 쓰는 매체라 봉투 아이콘 대신 원문자 U+24D4 를 쓴다.
         // 인코딩 계층을 타다 글자가 깨지는 자리라 이스케이프로 박는다.
@@ -55,17 +56,16 @@ public class TrayIcon : IDisposable
         var exitItem = new WF.ToolStripMenuItem("종료");
         exitItem.Click += (_, _) => ExitRequested?.Invoke();
 
-        menu.Items.Add(about);
-        if (builtAtItem is not null) menu.Items.Add(builtAtItem);
-        menu.Items.Add(copyrightItem);
-        menu.Items.Add(contactItem);
-        menu.Items.Add(new WF.ToolStripSeparator());
         menu.Items.Add(refreshItem);
         menu.Items.Add(reloginItem);
         menu.Items.Add(siteItem);
         menu.Items.Add(new WF.ToolStripSeparator());
         menu.Items.Add(forceShowItem);
         menu.Items.Add(autostartItem);
+        menu.Items.Add(new WF.ToolStripSeparator());
+        menu.Items.Add(about);
+        menu.Items.Add(copyrightItem);
+        menu.Items.Add(contactItem);
         menu.Items.Add(new WF.ToolStripSeparator());
         menu.Items.Add(exitItem);
 

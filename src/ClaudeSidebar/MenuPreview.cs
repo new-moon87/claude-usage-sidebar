@@ -20,6 +20,7 @@ internal static class MenuPreview
             FormBorderStyle = WF.FormBorderStyle.None,
             StartPosition = WF.FormStartPosition.Manual,
             ShowInTaskbar = false,
+            TopMost = true,
             BackColor = Color.FromArgb(0xED, 0xED, 0xE8),
             Bounds = new Rectangle(20, 20, 1400, 900)
         };

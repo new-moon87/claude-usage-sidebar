@@ -48,15 +48,21 @@ internal sealed class UpdateChecker(HttpClient http)
 
     // 업데이트 날짜는 실행 파일의 수정 시각을 쓴다. 자동 교체가 zip 안의 시각을 그대로 남기므로
     // 이 값이 곧 "이 버전이 이 PC 에 올라온 때"다. 빌드 시각을 따로 심을 필요가 없다.
-    public static string BuiltAtText()
+    public static string BuiltAtDate()
     {
         try
         {
             if (Environment.ProcessPath is { } exe && File.Exists(exe))
-                return File.GetLastWriteTime(exe).ToString("yyyy-MM-dd") + " 업데이트";
+                return File.GetLastWriteTime(exe).ToString("yyyy-MM-dd");
         }
         catch { }
         return "";
+    }
+
+    public static string BuiltAtText()
+    {
+        var d = BuiltAtDate();
+        return d.Length > 0 ? d + " 업데이트" : "";
     }
 
     public string Url { get; init; } = ManifestUrl;

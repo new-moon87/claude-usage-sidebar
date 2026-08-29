@@ -29,36 +29,21 @@ internal sealed class MenuTheme : WF.ToolStripRenderer
     private const int SeparatorInsetDip = 12;
 
     // 체크는 왼쪽에 여백을 두고 조금 작게 그린다 — 칸 안에 체크가 들어앉은 느낌을 준다.
-    private const int CheckLeftPadDip = 7;
+    private const int CheckLeftPadDip = 13;
     private const int CheckWidthDip = 10;
     private const int CheckHeightDip = 8;
 
-    // 버전·카피라이트 같은 설명 줄. 체크 칸만큼 들여쓰지 않고 왼쪽에 붙여 폭 낭비를 줄인다.
-    public const string CaptionTag = "caption";
-    private const int CaptionLeftDip = 10;
+    // 왼쪽 체크 칸의 폭. 기본값보다 넓혀 체크에 여유를 주고 본문 텍스트를 오른쪽으로 민다.
+    private const int GutterDip = 24;
+
+    // 항목 안쪽 여백. 왼쪽은 체크 앞 공간, 위아래는 행 높이를 정한다 (index: Padding="8,6").
+    private const int ItemPadLeftDip = 8;
+    // 본문 텍스트가 시작하는 x. 체크 칸을 확실히 비켜 두려면 이 값도 직접 정한다.
+    private const int TextLeftDip = 34;
+    private const int ItemPadRightDip = 20;
+    private const int ItemPadYDip = 4;
 
     private static int S(WF.ToolStrip? ts, double dip) => (int)Math.Round(dip * (ts?.DeviceDpi ?? 96) / 96.0);
-
-    /// 설명 줄(버전·날짜·카피라이트) 전용 항목.
-    /// 체크 칸을 쓰지 않으므로 그만큼 폭도 요구하지 않는다 — 기본 항목을 쓰면
-    /// 가장 긴 이 줄이 쓰지도 않는 여백까지 끌고 와 메뉴가 불필요하게 넓어진다.
-    internal sealed class CaptionItem : WF.ToolStripMenuItem
-    {
-        public CaptionItem(string text) : base(text)
-        {
-            Enabled = false;
-            Tag = CaptionTag;
-        }
-
-        public override Size GetPreferredSize(Size constrainingSize)
-        {
-            var b = base.GetPreferredSize(constrainingSize);
-            var text = WF.TextRenderer.MeasureText(Text, Font);
-            int dpi = Owner?.DeviceDpi ?? 96;
-            int pad = (int)Math.Round((CaptionLeftDip + 14) * dpi / 96.0);
-            return new Size(Math.Min(b.Width, text.Width + pad), b.Height);
-        }
-    }
 
     public static void Apply(WF.ContextMenuStrip menu)
     {
@@ -68,6 +53,8 @@ internal sealed class MenuTheme : WF.ToolStripRenderer
         menu.Font = new Font("Segoe UI", 9F);
         menu.Padding = new WF.Padding(0, 4, 0, 4);
         menu.ShowImageMargin = true;    // 체크 표시가 들어갈 왼쪽 칸을 남긴다
+        // 이 값이 왼쪽 칸의 폭을 정한다. 넓혀야 체크에 여유가 생기고 본문이 안쪽에서 시작한다.
+        menu.ImageScalingSize = new Size(GutterDip, GutterDip);
         menu.DropShadowEnabled = true;
 
         // 둥근 모서리는 창 영역을 잘라서 만든다. 크기는 열릴 때 정해지므로 그때마다 다시 잡는다.
@@ -79,6 +66,16 @@ internal sealed class MenuTheme : WF.ToolStripRenderer
         }
         menu.Opened += Reshape;
         menu.SizeChanged += Reshape;
+
+        // 여백은 DPI 를 알아야 정할 수 있다. 창이 뜨기 직전(크기 계산 전)에 넣는다.
+        menu.Opening += (_, _) =>
+        {
+            var pad = new WF.Padding(
+                S(menu, ItemPadLeftDip), S(menu, ItemPadYDip),
+                S(menu, ItemPadRightDip), S(menu, ItemPadYDip));
+            foreach (var item in menu.Items.OfType<WF.ToolStripMenuItem>())
+                item.Padding = pad;
+        };
     }
 
     private static GraphicsPath Rounded(Rectangle r, int radius)
@@ -147,12 +144,13 @@ internal sealed class MenuTheme : WF.ToolStripRenderer
     {
         e.TextColor = e.Item.Enabled ? TextColor : TextDisabled;
 
-        // 설명 줄은 체크 칸을 비워 두지 않고 왼쪽 끝에서 시작한다.
-        if (e.Item.Tag as string == CaptionTag)
+        // 텍스트 시작점도 직접 잡는다. WinForms 의 항목 여백만으로는 가로 위치가 잘 움직이지 않는다.
+        int left = S(e.ToolStrip, TextLeftDip);
+        int right = e.Item.Width - S(e.ToolStrip, ItemPadRightDip);
+        if (right > left)
         {
-            int left = S(e.ToolStrip, CaptionLeftDip);
             var r = e.TextRectangle;
-            e.TextRectangle = new Rectangle(left, r.Y, Math.Max(1, r.Right - left), r.Height);
+            e.TextRectangle = new Rectangle(left, r.Y, right - left, r.Height);
             e.TextFormat = (e.TextFormat & ~WF.TextFormatFlags.HorizontalCenter) | WF.TextFormatFlags.Left;
         }
 
@@ -162,11 +160,13 @@ internal sealed class MenuTheme : WF.ToolStripRenderer
     // 체크 표시. 기본 사각 테두리 대신 index 와 같은 보라색 체크 글리프를 그린다.
     protected override void OnRenderItemCheck(WF.ToolStripItemImageRenderEventArgs e)
     {
+        // WinForms 가 주는 ImageRectangle 은 여백을 바꿔도 잘 움직이지 않는다.
+        // 항목 왼쪽 끝에서 고정 거리로 직접 잡는다.
         var b = e.ImageRectangle;
         float w = S(e.ToolStrip, CheckWidthDip);
         float h = S(e.ToolStrip, CheckHeightDip);
-        float ox = b.Left + S(e.ToolStrip, CheckLeftPadDip);
-        float oy = b.Top + (b.Height - h) / 2f;
+        float ox = S(e.ToolStrip, CheckLeftPadDip);
+        float oy = (e.Item.Height - h) / 2f;
         float sx = w / 11f, sy = h / 9f;
 
         PointF P(float x, float y) => new(ox + x * sx, oy + y * sy);
