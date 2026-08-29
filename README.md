@@ -22,22 +22,44 @@ Claude Code 데스크톱 앱을 켜면 자동으로 나타나고, 끄면 자동�
 
 ## 설치
 
+두 갈래가 있다. 어느 쪽이든 `%LOCALAPPDATA%\ClaudeSidebar\` 로 들어가고 Windows 시작 시 자동 실행까지 등록된다.
+
+### 방법 1 — npx 한 줄
+
 ```bash
 npx github:new-moon87/claude-usage-sidebar install
 ```
 
-`%LOCALAPPDATA%\ClaudeSidebar\` 로 복사한 뒤 실행하고, Windows 시작 시 자동 실행까지 등록한다.
-
-다시 실행하려면:
+다시 실행:
 
 ```bash
 npx github:new-moon87/claude-usage-sidebar start
 ```
 
-제거하려면:
+제거:
 
 ```bash
 npx github:new-moon87/claude-usage-sidebar uninstall
+```
+
+Node 가 없거나 zip 을 직접 받고 싶으면 [배포 사이트](https://claude-usage-sidebar.vercel.app)에서 내려받아 실행한다.
+
+### 방법 2 — Claude 에 붙여넣기
+
+아래를 Claude Code 에 그대로 붙여넣으면 런타임 확인부터 실행까지 알아서 한다.
+
+```
+Claude 사용량 사이드바를 이 PC에 설치해줘.
+
+1. https://claude-usage-sidebar.vercel.app/version.json 을 받아 downloadUrl 과 sha256 을 확인한다.
+2. `dotnet --list-runtimes` 로 Microsoft.WindowsDesktop.App 8.x 가 있는지 확인하고,
+   없으면 `winget install Microsoft.DotNet.DesktopRuntime.8` 로 설치한다.
+3. downloadUrl 의 zip 을 받아 sha256 을 대조한다. 값이 다르면 중단하고 알려준다.
+4. ClaudeSidebar 프로세스가 실행 중이면 종료한다.
+5. zip 을 %LOCALAPPDATA%\ClaudeSidebar\ 에 풀고 ClaudeSidebar.exe 를 실행한다.
+6. 프로세스가 떠 있는지 확인하고 설치 결과를 알려준다.
+
+설치 뒤에는 시작할 때 스스로 새 버전으로 갱신하므로 다시 설치할 필요는 없다.
 ```
 
 ## 요구 사항

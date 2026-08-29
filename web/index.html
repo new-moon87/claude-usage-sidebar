@@ -48,6 +48,15 @@
   pre { background: var(--line); padding: 12px 14px; border-radius: 8px; overflow-x: auto;
         font-size: 14px; margin: 8px 0 0; }
   pre code { background: none; padding: 0; }
+  .way { border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; margin: 0 0 16px; }
+  .way h3 { margin: 0 0 4px; font-size: 17px; }
+  .way p.sub { margin: 0 0 12px; color: var(--dim); font-size: 14px; }
+  .prompt { position: relative; }
+  .prompt pre { margin: 0; max-height: 320px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
+  .copy { position: absolute; top: 8px; right: 8px; border: 1px solid var(--line);
+          background: var(--card); color: var(--fg); border-radius: 8px; padding: 6px 12px;
+          font: inherit; font-size: 13px; cursor: pointer; }
+  .copy:hover { border-color: var(--accent); color: var(--accent); }
   .note { font-size: 14px; color: var(--dim); border-left: 3px solid var(--line);
           padding-left: 14px; margin-top: 28px; }
   .rel { border-top: 1px solid var(--line); padding: 16px 0; }
@@ -93,25 +102,48 @@
   </p>
 
   <h2>설치</h2>
-  <ol>
-    <li>내려받은 zip 을 풀고 <code>ClaudeSidebar.exe</code> 를 실행합니다. 설치 과정은 없습니다.</li>
-    <li>파란 경고창이 뜨면 <strong>추가 정보 → 실행</strong>. 코드 서명 인증서가 없어서 뜨는 것입니다.</li>
-    <li>Claude Code 에 한 번 로그인해 두어야 네 항목이 모두 나옵니다. 로그인 이력이 없으면
-        패널의 <strong>“Claude 로그인 필요”</strong> 를 눌러 터미널을 열 수 있습니다.</li>
-  </ol>
+
+  <div class="way">
+    <h3>방법 1 — 내려받아 실행</h3>
+    <p class="sub">위 버튼으로 받은 zip 을 풀고 실행합니다. 설치 과정은 없습니다.</p>
+    <ol>
+      <li>zip 을 풀고 <code>ClaudeSidebar.exe</code> 를 실행합니다.</li>
+      <li>파란 경고창이 뜨면 <strong>추가 정보 → 실행</strong>. 코드 서명 인증서가 없어서 뜨는 것입니다.</li>
+      <li><strong>“You must install or update .NET”</strong> 창이 뜨면 .NET 8 데스크톱 런타임이 없는 것입니다.
+          그 창의 링크 대신 아래 명령이 확실합니다 — 반드시 <em>Desktop</em> 런타임이어야 합니다.
+        <pre><code>winget install Microsoft.DotNet.DesktopRuntime.8</code></pre>
+      </li>
+    </ol>
+    <p class="sub" style="margin:14px 0 6px">Node 가 있다면 내려받기 없이 한 줄로도 됩니다.</p>
+    <pre><code>npx github:new-moon87/claude-usage-sidebar install</code></pre>
+  </div>
+
+  <div class="way">
+    <h3>방법 2 — Claude 에 붙여넣기</h3>
+    <p class="sub">아래를 복사해 Claude Code 에 그대로 붙여넣으면 런타임 확인부터 실행까지 알아서 합니다.</p>
+    <div class="prompt">
+      <button class="copy" id="copy" type="button">복사</button>
+      <pre><code id="prompt">Claude 사용량 사이드바를 이 PC에 설치해줘.
+
+1. https://claude-usage-sidebar.vercel.app/version.json 을 받아 downloadUrl 과 sha256 을 확인한다.
+2. `dotnet --list-runtimes` 로 Microsoft.WindowsDesktop.App 8.x 가 있는지 확인하고,
+   없으면 `winget install Microsoft.DotNet.DesktopRuntime.8` 로 설치한다.
+3. downloadUrl 의 zip 을 받아 sha256 을 대조한다. 값이 다르면 중단하고 알려준다.
+4. ClaudeSidebar 프로세스가 실행 중이면 종료한다.
+5. zip 을 %LOCALAPPDATA%\ClaudeSidebar\ 에 풀고 ClaudeSidebar.exe 를 실행한다.
+6. 프로세스가 떠 있는지 확인하고 설치 결과를 알려준다.
+
+설치 뒤에는 시작할 때 스스로 새 버전으로 갱신하므로 다시 설치할 필요는 없다.</code></pre>
+    </div>
+  </div>
 
   <h2>필요한 것</h2>
   <ul>
     <li>Windows 10 이상 (64비트)</li>
-    <li>.NET 8 데스크톱 런타임 — 없으면 아래 한 줄로 설치합니다.
-      <pre><code>winget install Microsoft.DotNet.DesktopRuntime.8</code></pre>
-    </li>
-    <li>Claude Code (데스크톱 앱 권장 — 자동 표시/숨김이 이 앱 실행을 보고 판단합니다)</li>
+    <li>.NET 8 데스크톱 런타임 (방법 2 는 없으면 알아서 설치합니다)</li>
+    <li>Claude Code — 데스크톱 앱 권장. 자동 표시/숨김이 이 앱 실행을 보고 판단합니다.</li>
+    <li>Claude Code 에 한 번 로그인. 이력이 없으면 패널의 <strong>“Claude 로그인 필요”</strong> 를 눌러 터미널을 열 수 있습니다.</li>
   </ul>
-
-  <h2>명령 한 줄로 설치하기</h2>
-  <p style="margin:0">Node 가 있다면 내려받기 없이 바로 설치·실행할 수 있습니다.</p>
-  <pre><code>npx github:new-moon87/claude-usage-sidebar install</code></pre>
 
   <p class="note">
     한 번 설치하면 그 뒤로는 새 버전이 나올 때 <strong>시작하면서 스스로 갱신</strong>합니다.
@@ -128,6 +160,14 @@
 </main>
 
 <script>
+document.getElementById('copy').addEventListener('click', function () {
+  var btn = this;
+  navigator.clipboard.writeText(document.getElementById('prompt').textContent).then(function () {
+    btn.textContent = '복사됨';
+    setTimeout(function () { btn.textContent = '복사'; }, 1500);
+  });
+});
+
 // 버전을 이 파일에 박아 두지 않는다. 배포할 때마다 HTML 을 고쳐야 하고,
 // 한 번이라도 잊으면 없는 파일을 가리킨다. version.json 하나만 진실로 둔다.
 fetch('/version.json', { cache: 'no-store' })
