@@ -41,9 +41,6 @@ public class TrayIcon : IDisposable
         var siteItem = new WF.ToolStripMenuItem("다운로드 사이트 열기");
         siteItem.Click += (_, _) => OpenSite();
 
-        var refreshItem = new WF.ToolStripMenuItem("지금 새로고침");
-        refreshItem.Click += (_, _) => RefreshRequested?.Invoke();
-
         var reloginItem = new WF.ToolStripMenuItem("Claude 재로그인 (터미널 열기)");
         reloginItem.Click += (_, _) => ReloginRequested?.Invoke();
 
@@ -56,7 +53,6 @@ public class TrayIcon : IDisposable
         var exitItem = new WF.ToolStripMenuItem("종료");
         exitItem.Click += (_, _) => ExitRequested?.Invoke();
 
-        menu.Items.Add(refreshItem);
         menu.Items.Add(reloginItem);
         menu.Items.Add(siteItem);
         menu.Items.Add(new WF.ToolStripSeparator());
