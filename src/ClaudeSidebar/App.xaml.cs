@@ -134,9 +134,22 @@ public partial class App : Application
         var result = await new UpdateChecker(_http).CheckAsync();
         if (!result.IsUpdateAvailable) return;
 
-        // 새 인스턴스가 단일 인스턴스 뮤텍스에 막혀 즉시 죽지 않도록 먼저 놓는다.
+        // 새 인스턴스가 단일 인스턴스 뮤텍스에 막혀 즉시 죽지 않도록 먼저 치운다.
+        //
+        // ReleaseMutex 만으로는 부족하다 — 그것은 소유권만 놓을 뿐이고, 이름 있는 뮤텍스는
+        // 핸들이 전부 닫혀야 사라진다. 핸들을 쥔 채 새 exe 를 띄우면 그쪽은 createdNew=false 로
+        // 보고 로그 한 줄 없이 죽는다(= 업데이트 후 앱이 사라진 것처럼 보인다).
+        // 실제로 0.1.3.0 → 0.1.4.0 에서 이 경합에 걸렸다. 반드시 Dispose 까지 한다.
+        //
         // ReleaseMutex 는 만든 스레드에서만 되므로 UI 스레드에서 호출해야 한다(여기가 그 스레드다).
-        try { _mutex?.ReleaseMutex(); } catch (Exception ex) { Log.Write("[update] 뮤텍스 해제 실패: " + ex.GetType().Name); }
+        // 교체가 실패하면 이번 실행은 단일 인스턴스 보호 없이 계속되지만, 스스로 두 번 뜨는 경로는 없다.
+        try
+        {
+            _mutex?.ReleaseMutex();
+            _mutex?.Dispose();
+            _mutex = null;
+        }
+        catch (Exception ex) { Log.Write("[update] 뮤텍스 정리 실패: " + ex.GetType().Name); }
 
         if (await UpdateInstaller.ApplyAsync(result, _http)) Shutdown();
     }

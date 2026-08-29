@@ -1,13 +1,20 @@
 ﻿{
-    "version":  "0.1.4.0",
-    "downloadUrl":  "https://claude-usage-sidebar.vercel.app/ClaudeSidebar-0.1.4.0.zip",
-    "sha256":  "898F4CA3F756DEB3688422E51F81093546B5F69A1D97C0F1CDB80AC3D5E8B5E5",
+    "version":  "0.1.5.0",
+    "downloadUrl":  "https://claude-usage-sidebar.vercel.app/ClaudeSidebar-0.1.5.0.zip",
+    "sha256":  "60BA22D5E1E1C7D1F9F543158E258153A4622F92D321E1D49CF99F452B5DEF1D",
     "notes":  [
-                  "트레이 메뉴에 버전·업데이트 날짜 표시, 다운로드 사이트 바로 열기 추가"
+                  "업데이트 직후 앱이 실행되지 않던 문제 수정 (단일 인스턴스 뮤텍스 경합)"
               ],
-    "releasedAt":  "2026-08-29 17:27",
+    "releasedAt":  "2026-08-29 17:29",
     "sizeMb":  0.1,
     "history":  [
+                    {
+                        "version":  "0.1.5.0",
+                        "releasedAt":  "2026-08-29 17:29",
+                        "notes":  [
+                                      "업데이트 직후 앱이 실행되지 않던 문제 수정 (단일 인스턴스 뮤텍스 경합)"
+                                  ]
+                    },
                     {
                         "version":  "0.1.4.0",
                         "releasedAt":  "2026-08-29 17:27",
