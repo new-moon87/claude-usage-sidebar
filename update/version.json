@@ -1,13 +1,22 @@
 ﻿{
-    "version":  "0.1.14.0",
-    "downloadUrl":  "https://claude-usage-sidebar.vercel.app/ClaudeSidebar-0.1.14.0.zip",
-    "sha256":  "69DAE07AC7F32961971EDA2644D3BECF29DFF33F5E4E5DD379E102BEA157464B",
+    "version":  "0.1.15.0",
+    "downloadUrl":  "https://claude-usage-sidebar.vercel.app/ClaudeSidebar-0.1.15.0.zip",
+    "sha256":  "FADD148D8985771823790FB47798514A50B2AF5B8F4212F0C4F944144A8C899F",
     "notes":  [
-                  "트레이 메뉴에서 \u0027지금 새로고침\u0027 제거"
+                  "Claude 창이 떠 있는 모니터로 사이드바 자동 이동",
+                  "개발 문서에 따라가기 규칙(함정 15) 추가"
               ],
-    "releasedAt":  "2026-08-30 01:14",
+    "releasedAt":  "2026-09-02 21:54",
     "sizeMb":  0.1,
     "history":  [
+                    {
+                        "version":  "0.1.15.0",
+                        "releasedAt":  "2026-09-02 21:54",
+                        "notes":  [
+                                      "Claude 창이 떠 있는 모니터로 사이드바 자동 이동",
+                                      "개발 문서에 따라가기 규칙(함정 15) 추가"
+                                  ]
+                    },
                     {
                         "version":  "0.1.14.0",
                         "releasedAt":  "2026-08-30 01:14",

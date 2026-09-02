@@ -45,6 +45,7 @@ public partial class MainWindow : Window
     private TextBlock _statusLine = null!;
     private TextBlock _pinBtn = null!;
     private string? _savedMonitor;
+    private string? _followedMonitor;
     private int? _savedPhysY;
     private bool _pinned;
     private string _footerBase = "--";
@@ -100,6 +101,20 @@ public partial class MainWindow : Window
     {
         _savedMonitor = monitor;
         _savedPhysY = physY;
+    }
+
+    // Claude 창이 다른 모니터로 옮겨 갔으면 사이드바도 그 화면으로 따라간다.
+    // 같은 모니터면 아무 일도 하지 않는다 — 그래야 사용자가 끌어다 놓은 위치를 2초마다 빼앗지 않는다.
+    public void FollowClaude(string? monitor)
+    {
+        if (monitor is null || monitor == _followedMonitor) return;
+        _followedMonitor = monitor;
+        if (monitor == _savedMonitor) return;
+
+        Log.Write($"[follow] 사이드바 이동 {_savedMonitor ?? "(기본)"} → {monitor}");
+        _savedMonitor = monitor;
+        _savedPhysY = null;   // 다른 모니터라 세로 위치는 새로 잡는다(가운데)
+        if (IsVisible) ApplyPlacement("follow");
     }
 
     // 목표 모니터를 고른다. 모니터 목록은 매번 새로 묻는다(캐시 금지 — 함정 ⑧).

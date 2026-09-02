@@ -93,7 +93,12 @@ public partial class App : Application
         if (_settings.Settings.Autostart) Autostart.Set(true);
 
         _watcher = new ProcessWatcher();
-        _watcher.RunningChanged += _ => Dispatcher.Invoke(UpdateVisibility);
+        // 표시 전에 따라갈 모니터를 먼저 잡는다 — 순서가 뒤바뀌면 기본 모니터에 한 번 떴다가 건너뛴다.
+        _watcher.RunningChanged += _ => Dispatcher.Invoke(() =>
+        {
+            _window?.FollowClaude(_watcher?.ClaudeMonitor);
+            UpdateVisibility();
+        });
 
         _usageTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(60) };
         _usageTimer.Tick += (_, _) => _ = RefreshAsync();
@@ -191,6 +196,8 @@ public partial class App : Application
 
     private void GuardTick()
     {
+        _window?.FollowClaude(_watcher?.ClaudeMonitor);
+
         var fp = DisplayInfo.Fingerprint();
         if (fp != _lastFingerprint)
         {
