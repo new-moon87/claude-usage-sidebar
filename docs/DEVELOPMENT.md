@@ -15,18 +15,25 @@ Claude Code 와 Codex 의 사용량 한도를 화면 오른쪽 가장자리에 �
 
 | 약자 | 제품 | 지표 | 고유 색 |
 |---|---|---|---|
-| H | Claude | 5시간 세션 한도 | `#7F77DD` (보라) |
-| W | Claude | 주간 한도 (전체 모델) | `#EF9F27` (주황) |
-| F | Claude | 주간 한도 (모델 전용 — API가 주는 `display_name` 첫 글자로 동적 변경) | `#378ADD` (파랑) |
-| h | Codex | 24시간 이하 창 중 사용률 최대 (3.6, 함정 ⑯) | `#10A37F` (초록) |
-| w | Codex | 24시간 초과 창 중 사용률 최대 | `#19C39C` (밝은 초록) |
+| CH | Claude | 5시간 세션 한도 | `#7F77DD` (보라) |
+| CW | Claude | 주간 한도 (전체 모델) | `#EF9F27` (주황) |
+| C+ | Claude | 주간 한도 (모델 전용 — `C` + API가 주는 `display_name` 첫 글자, 예: `CF`) | `#378ADD` (파랑) |
+| GH | Codex | 24시간 이하 창 중 사용률 최대 (3.6, 함정 ⑯) | `#10A37F` (초록) |
+| GW | Codex | 24시간 초과 창 중 사용률 최대 | `#19C39C` (밝은 초록) |
 
-- 제품을 가르는 단서는 **대소문자와 색**뿐이다(알약에 한 글자밖에 안 들어간다). 그룹 사이만 여백을 벌린다.
+- 앞 글자가 제품(`C`=Claude, `G`=GPT/Codex), 뒷 글자가 한도 종류다. 색은 보조 단서. 그룹 사이만 여백을 벌린다.
 - 크레딧은 양쪽 모두 알약이 아니라 상세 패널의 한 줄 텍스트다.
 
 - 사용률 85% 초과 시 해당 알약이 위험색 `#E24B4A`로 바뀌고 Opacity 1.0↔0.5 (700ms, AutoReverse, Forever) 펄스.
-- 알약 안: 맨 위에 약자 1글자, 그 아래 % 숫자를 **한 자리씩 세로로 쌓아** 표시 (`string.Join("\n", v.ToString().ToCharArray())`).
+- 알약 안: 맨 위에 약자 2글자, 그 아래 % 숫자를 **한 자리씩 세로로 쌓아** 표시 (`string.Join("\n", v.ToString().ToCharArray())`).
 - 알약은 세로 미니 게이지: 사용률만큼 아래에서 고유 색이 차오른다.
+
+> **함정 ⑱ (알약 안에서는 전부 세로로 쌓는다)** — 알약 폭은 13px 뿐이라 두 글자를 가로로 늘어놓을 수 없다.
+> `CW` 를 가로로 넣으려면 글자를 6 까지 줄여야 하는데 그러면 읽을 수가 없다(실제로 해 보고 되돌린 경로다).
+> **라벨도 숫자도 한 줄에 한 글자씩 세로로 쌓고 크기는 8.5 를 유지한다.** 그러면 폭은 제약에서 빠지고
+> 높이만 남는다: 라벨 2줄 + 숫자 3줄(`100`) = 5줄 × 줄높이 9.5 + 위 여백 3 ≈ 51 < 64 로 들어간다.
+> `LineStackingStrategy.BlockLineHeight` 를 같이 줘야 줄높이가 실제로 먹는다.
+> 크기를 올릴 일이 생기면 **값을 100 으로 물린 화면을 캡처해서** 마지막 자리가 아래 둥근 끝을 파고드는지 볼 것.
 
 ### 동작
 
@@ -136,10 +143,10 @@ anthropic-beta: oauth-2025-04-20
 
 | 지표 | 위치 |
 |---|---|
-| H | 최상위 `five_hour: {utilization, resets_at}` |
-| W | 최상위 `seven_day: {utilization, resets_at}` |
-| F | **`limits[]` 배열에서 `kind == "weekly_scoped"`인 항목** → `percent`, `resets_at`, `scope.model.display_name`(예: "Fable") |
-| C | `spend` 객체 → `percent`, `used.amount_minor`, `limit.amount_minor`, `exponent`(센트 단위), `enabled`, `disabled_reason`. 없으면 `extra_usage.utilization` 폴백 |
+| CH | 최상위 `five_hour: {utilization, resets_at}` |
+| CW | 최상위 `seven_day: {utilization, resets_at}` |
+| CF | **`limits[]` 배열에서 `kind == "weekly_scoped"`인 항목** → `percent`, `resets_at`, `scope.model.display_name`(예: "Fable") |
+| 크레딧 | `spend` 객체 → `percent`, `used.amount_minor`, `limit.amount_minor`, `exponent`(센트 단위), `enabled`, `disabled_reason`. 없으면 `extra_usage.utilization` 폴백 |
 
 > **함정 ⑤** — 최상위에 `seven_day_opus`, `seven_day_sonnet` 같은 그럴듯한 필드가 있지만 **전부 null**이다
 > (구버전 잔재). 모델 전용 주간 한도는 `limits[]` 안에만 있다. 그래도 방어적으로 `limits[]`에서 못 찾으면

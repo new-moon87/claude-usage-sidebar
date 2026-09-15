@@ -17,6 +17,11 @@ public partial class MainWindow : Window
     private const double PillW = 13;
     private const double PillH = 64;
     private const double RowBarW = 176;
+    // 알약 글자 크기. 라벨도 숫자도 한 줄에 한 글자씩 세로로 쌓으므로 가로 폭은 제약이 아니고,
+    // 남는 제약은 높이뿐이다: 라벨 2줄 + 숫자 3줄(100%)이 64px 안에 들어가야 한다.
+    private const double LetterSize = 8.5;
+    private const double DigitSize = 8.5;
+    private const double GlyphLine = 9.5;
     // 창의 논리 크기(DIP). 이 값은 절대 SetWindowPos 로 바꾸지 않는다 — 함정 ⑪ 참고.
     private const double BaseW = 260;
     private const double BaseH = 400;
@@ -80,12 +85,12 @@ public partial class MainWindow : Window
         _pillHost = PillStrip;
         _rowHost = DetailRows;
         BuildHeader("Claude 사용량", UpdateChecker.VersionText, out _);
-        _h = MakePill("H", "5시간 세션", Color.FromRgb(0x7F, 0x77, 0xDD));
-        _w = MakePill("W", "주간 · 전체", Color.FromRgb(0xEF, 0x9F, 0x27));
-        _f = MakePill("F", "주간 · Fable", Color.FromRgb(0x37, 0x8A, 0xDD));
+        _h = MakePill("CH", "5시간 세션", Color.FromRgb(0x7F, 0x77, 0xDD));
+        _w = MakePill("CW", "주간 · 전체", Color.FromRgb(0xEF, 0x9F, 0x27));
+        _f = MakePill("CF", "주간 · Fable", Color.FromRgb(0x37, 0x8A, 0xDD));
         _claudeCredit = AddNoteRow();
-        // Codex 는 소문자 알약 + OpenAI 초록 계열로 구분한다. 알약에는 한 글자만 들어가므로
-        // 색과 대소문자가 제품을 가르는 유일한 단서다.
+        // 앞 글자가 제품(C=Claude, G=GPT/Codex), 뒷 글자가 한도 종류(H=5시간, W=주간, F=모델 전용)다.
+        // 색은 보조 단서로 남긴다 — Codex 는 OpenAI 초록 계열.
         // 설치 안 된 PC 에서는 구역째 숨겨야 하므로 제 컨테이너에 담는다.
         _codexPillGroup = new StackPanel();
         _codexRowGroup = new StackPanel();
@@ -94,8 +99,8 @@ public partial class MainWindow : Window
         _pillHost = _codexPillGroup;
         _rowHost = _codexRowGroup;
         BuildHeader("Codex 사용량", "", out _codexPlan);
-        _codexShort = MakePill("h", "5시간", Color.FromRgb(0x10, 0xA3, 0x7F), groupGap: true);
-        _codexLong = MakePill("w", "주간", Color.FromRgb(0x19, 0xC3, 0x9C));
+        _codexShort = MakePill("GH", "5시간", Color.FromRgb(0x10, 0xA3, 0x7F), groupGap: true);
+        _codexLong = MakePill("GW", "주간", Color.FromRgb(0x19, 0xC3, 0x9C));
         _codexCredit = AddNoteRow();
 
         _pillHost = PillStrip;
@@ -304,24 +309,27 @@ public partial class MainWindow : Window
         {
             VerticalAlignment = VerticalAlignment.Top,
             HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, 4, 0, 0)
+            Margin = new Thickness(0, 3, 0, 0)
         };
         pill.LetterText = new TextBlock
         {
-            Text = letter,
-            FontSize = 8.5,
+            Text = Stack(letter),
+            FontSize = LetterSize,
             FontWeight = FontWeights.Bold,
             Foreground = new SolidColorBrush(Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF)),
-            HorizontalAlignment = HorizontalAlignment.Center
+            HorizontalAlignment = HorizontalAlignment.Center,
+            TextAlignment = TextAlignment.Center,
+            LineHeight = GlyphLine,
+            LineStackingStrategy = LineStackingStrategy.BlockLineHeight
         };
         pill.Digits = new TextBlock
         {
-            FontSize = 8.5,
+            FontSize = DigitSize,
             FontWeight = FontWeights.Bold,
             Foreground = new SolidColorBrush(Color.FromArgb(0xF2, 0xFF, 0xFF, 0xFF)),
             HorizontalAlignment = HorizontalAlignment.Center,
             TextAlignment = TextAlignment.Center,
-            LineHeight = 9.5,
+            LineHeight = GlyphLine,
             LineStackingStrategy = LineStackingStrategy.BlockLineHeight,
             Margin = new Thickness(0, 1, 0, 0)
         };
@@ -388,6 +396,9 @@ public partial class MainWindow : Window
     }
 
     // 제품 구역 머리글. 오른쪽 작은 글씨는 Claude 면 버전, Codex 면 요금제라 나중에 바꿀 수 있게 돌려준다.
+    // 알약은 폭이 13px 뿐이라 글자를 가로로 늘어놓을 수 없다. 라벨도 숫자도 한 글자씩 세로로 쌓는다.
+    private static string Stack(string text) => string.Join("\n", text.ToCharArray());
+
     private void BuildHeader(string title, string rightText, out TextBlock right)
     {
         var head = new DockPanel { Margin = new Thickness(0, 6, 0, 6) };
@@ -536,7 +547,7 @@ public partial class MainWindow : Window
 
         if (s?.ModelWeeklyLabel is { Length: > 0 } label)
         {
-            _f.LetterText.Text = label[..1].ToUpperInvariant();
+            _f.LetterText.Text = Stack("C" + label[..1].ToUpperInvariant());
             _f.RowName.Text = "주간 · " + label;
         }
 
@@ -626,7 +637,7 @@ public partial class MainWindow : Window
 
         int v = (int)Math.Round(pct.Value);
         double clamped = Math.Max(0, Math.Min(100, pct.Value));
-        p.Digits.Text = string.Join("\n", v.ToString().ToCharArray());
+        p.Digits.Text = Stack(v.ToString());
         p.Fill.Height = PillH * clamped / 100.0;
         p.RowPct.Text = v + "%";
         p.RowFill.Width = RowBarW * clamped / 100.0;

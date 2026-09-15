@@ -1,15 +1,22 @@
 ﻿{
-    "version":  "0.2.0.0",
-    "downloadUrl":  "https://claude-usage-sidebar.vercel.app/ClaudeSidebar-0.2.0.0.zip",
-    "sha256":  "9096FFA5C9D6CD71DC09678F041E61872C5C842BA06517615805F9C58C1C2AC6",
+    "version":  "0.2.1.0",
+    "downloadUrl":  "https://claude-usage-sidebar.vercel.app/ClaudeSidebar-0.2.1.0.zip",
+    "sha256":  "F1DE1342D82C0B27641583269789B66416A230D2A78DE70AC25E8490984DB00A",
     "notes":  [
-                  "Codex 사용량 표시 추가 (5시간대 h / 주간대 w 알약)",
-                  "크레딧은 Claude·Codex 모두 상세 패널 텍스트로 이동",
-                  "Claude 또는 Codex 중 하나만 켜도 사이드바 표시"
+                  "알약 표기를 CH·CW·CF / GH·GW 로 변경 (앞 글자가 제품)",
+                  "알약 안 글자를 전부 세로로 쌓아 100%(세 자리)까지 안 잘리게"
               ],
-    "releasedAt":  "2026-09-15 18:37",
+    "releasedAt":  "2026-09-15 19:06",
     "sizeMb":  0.11,
     "history":  [
+                    {
+                        "version":  "0.2.1.0",
+                        "releasedAt":  "2026-09-15 19:06",
+                        "notes":  [
+                                      "알약 표기를 CH·CW·CF / GH·GW 로 변경 (앞 글자가 제품)",
+                                      "알약 안 글자를 전부 세로로 쌓아 100%(세 자리)까지 안 잘리게"
+                                  ]
+                    },
                     {
                         "version":  "0.2.0.0",
                         "releasedAt":  "2026-09-15 18:37",
