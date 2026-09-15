@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="ClaudeSidebar" WindowStyle="None" AllowsTransparency="True"
         Background="Transparent" Topmost="True" ShowInTaskbar="False"
-        ResizeMode="NoResize" Width="260" Height="320" ShowActivated="False">
+        ResizeMode="NoResize" Width="260" Height="400" ShowActivated="False">
     <!-- 창 폭 260 중 왼쪽 여유는 패널 그림자가 잘리지 않게 두는 자리다.
          투명 영역은 클릭이 그대로 통과하므로 다른 창을 방해하지 않는다. -->
     <StackPanel x:Name="RootPanel" Orientation="Horizontal"

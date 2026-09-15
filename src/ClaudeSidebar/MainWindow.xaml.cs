@@ -19,7 +19,7 @@ public partial class MainWindow : Window
     private const double RowBarW = 176;
     // 창의 논리 크기(DIP). 이 값은 절대 SetWindowPos 로 바꾸지 않는다 — 함정 ⑪ 참고.
     private const double BaseW = 260;
-    private const double BaseH = 320;
+    private const double BaseH = 400;
     private static readonly Color Red = Color.FromRgb(0xE2, 0x4B, 0x4A);
     private static readonly CultureInfo Korean = new("ko-KR");
 
@@ -39,8 +39,17 @@ public partial class MainWindow : Window
     private readonly Pill _h;
     private readonly Pill _w;
     private readonly Pill _f;
-    private readonly Pill _c;
+    private readonly Pill _codexShort;
+    private readonly Pill _codexLong;
     private readonly DispatcherTimer _collapseTimer;
+    // 알약과 상세 행이 들어갈 자리. 빌드 중에 바꿔 끼워 Codex 구역을 따로 담는다.
+    private Panel _pillHost = null!;
+    private Panel _rowHost = null!;
+    private Panel _codexPillGroup = null!;
+    private Panel _codexRowGroup = null!;
+    private TextBlock _claudeCredit = null!;
+    private TextBlock _codexCredit = null!;
+    private TextBlock _codexPlan = null!;
     private TextBlock _footer = null!;
     private TextBlock _statusLine = null!;
     private TextBlock _pinBtn = null!;
@@ -68,11 +77,29 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        BuildHeader();
+        _pillHost = PillStrip;
+        _rowHost = DetailRows;
+        BuildHeader("Claude 사용량", UpdateChecker.VersionText, out _);
         _h = MakePill("H", "5시간 세션", Color.FromRgb(0x7F, 0x77, 0xDD));
         _w = MakePill("W", "주간 · 전체", Color.FromRgb(0xEF, 0x9F, 0x27));
         _f = MakePill("F", "주간 · Fable", Color.FromRgb(0x37, 0x8A, 0xDD));
-        _c = MakePill("C", "추가 사용량", Color.FromRgb(0x5D, 0xCA, 0xA5));
+        _claudeCredit = AddNoteRow();
+        // Codex 는 소문자 알약 + OpenAI 초록 계열로 구분한다. 알약에는 한 글자만 들어가므로
+        // 색과 대소문자가 제품을 가르는 유일한 단서다.
+        // 설치 안 된 PC 에서는 구역째 숨겨야 하므로 제 컨테이너에 담는다.
+        _codexPillGroup = new StackPanel();
+        _codexRowGroup = new StackPanel();
+        PillStrip.Children.Add(_codexPillGroup);
+        DetailRows.Children.Add(_codexRowGroup);
+        _pillHost = _codexPillGroup;
+        _rowHost = _codexRowGroup;
+        BuildHeader("Codex 사용량", "", out _codexPlan);
+        _codexShort = MakePill("h", "5시간", Color.FromRgb(0x10, 0xA3, 0x7F), groupGap: true);
+        _codexLong = MakePill("w", "주간", Color.FromRgb(0x19, 0xC3, 0x9C));
+        _codexCredit = AddNoteRow();
+
+        _pillHost = PillStrip;
+        _rowHost = DetailRows;
         BuildFooter();
 
         _collapseTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
@@ -258,7 +285,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private Pill MakePill(string letter, string name, Color color)
+    private Pill MakePill(string letter, string name, Color color, bool groupGap = false)
     {
         var pill = new Pill { BaseColor = color };
 
@@ -302,14 +329,14 @@ public partial class MainWindow : Window
         texts.Children.Add(pill.Digits);
         grid.Children.Add(texts);
 
-        PillStrip.Children.Add(new Border
+        _pillHost.Children.Add(new Border
         {
             Child = grid,
             Background = Brushes.Transparent,
             BorderBrush = new SolidColorBrush(Color.FromArgb(0x38, 0xFF, 0xFF, 0xFF)),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(PillW / 2 + 1),
-            Margin = new Thickness(0, 3, 0, 3)
+            Margin = new Thickness(0, groupGap ? 10 : 3, 0, 3)
         });
 
         var head = new DockPanel { Margin = new Thickness(0, 4, 0, 3) };
@@ -329,7 +356,7 @@ public partial class MainWindow : Window
         };
         head.Children.Add(pill.RowPct);
         head.Children.Add(pill.RowName);
-        DetailRows.Children.Add(head);
+        _rowHost.Children.Add(head);
 
         var track = new Border
         {
@@ -347,7 +374,7 @@ public partial class MainWindow : Window
             Fill = new SolidColorBrush(color)
         };
         track.Child = pill.RowFill;
-        DetailRows.Children.Add(track);
+        _rowHost.Children.Add(track);
 
         pill.RowReset = new TextBlock
         {
@@ -356,35 +383,51 @@ public partial class MainWindow : Window
             Foreground = new SolidColorBrush(Color.FromRgb(0x88, 0x87, 0x80)),
             Margin = new Thickness(0, 2, 0, 2)
         };
-        DetailRows.Children.Add(pill.RowReset);
+        _rowHost.Children.Add(pill.RowReset);
         return pill;
     }
 
-    private void BuildHeader()
+    // 제품 구역 머리글. 오른쪽 작은 글씨는 Claude 면 버전, Codex 면 요금제라 나중에 바꿀 수 있게 돌려준다.
+    private void BuildHeader(string title, string rightText, out TextBlock right)
     {
-        var head = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
-        var ver = new TextBlock
+        var head = new DockPanel { Margin = new Thickness(0, 6, 0, 6) };
+        right = new TextBlock
         {
-            Text = UpdateChecker.VersionText,
+            Text = rightText,
             FontSize = 10,
             Foreground = new SolidColorBrush(Color.FromRgb(0x88, 0x87, 0x80)),
             VerticalAlignment = VerticalAlignment.Center
         };
-        DockPanel.SetDock(ver, Dock.Right);
-        head.Children.Add(ver);
+        DockPanel.SetDock(right, Dock.Right);
+        head.Children.Add(right);
         head.Children.Add(new TextBlock
         {
-            Text = "Claude 사용량",
+            Text = title,
             FontSize = 11.5,
             FontWeight = FontWeights.SemiBold,
             Foreground = new SolidColorBrush(Color.FromRgb(0xF1, 0xEF, 0xE8))
         });
-        DetailRows.Children.Add(head);
-        DetailRows.Children.Add(new Border
+        _rowHost.Children.Add(head);
+        _rowHost.Children.Add(new Border
         {
             Height = 1,
             Background = new SolidColorBrush(Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF))
         });
+    }
+
+    // 알약을 차지할 만큼 중요하진 않은 값(크레딧)의 한 줄짜리 자리.
+    private TextBlock AddNoteRow()
+    {
+        var t = new TextBlock
+        {
+            Text = "",
+            FontSize = 10,
+            Foreground = new SolidColorBrush(Color.FromRgb(0x88, 0x87, 0x80)),
+            Margin = new Thickness(0, 4, 0, 1),
+            TextTrimming = TextTrimming.CharacterEllipsis
+        };
+        _rowHost.Children.Add(t);
+        return t;
     }
 
     private void BuildFooter()
@@ -452,7 +495,8 @@ public partial class MainWindow : Window
         };
         _statusLine.MouseLeftButtonUp += (_, _) =>
         {
-            if (_statusLine.Text.Contains("로그인")) ReloginRequested?.Invoke();
+            // 이 버튼이 여는 건 Claude 로그인 터미널이다. Codex 문제일 땐 눌러도 헛수고라 막는다.
+            if (IsClaudeLogin(_statusLine.Text)) ReloginRequested?.Invoke();
         };
         DetailRows.Children.Add(_statusLine);
     }
@@ -484,12 +528,11 @@ public partial class MainWindow : Window
         _pinBtn.ToolTip = Pinned ? "고정 해제" : "펼침 고정";
     }
 
-    public void ApplySnapshot(UsageSnapshot? s, string? status)
+    public void ApplySnapshot(UsageSnapshot? s, CodexSnapshot? cx, string? status)
     {
         SetPill(_h, s?.FiveHour?.Utilization);
         SetPill(_w, s?.SevenDay?.Utilization);
         SetPill(_f, s?.ModelWeekly?.Utilization);
-        SetPill(_c, s?.ExtraUsagePct);
 
         if (s?.ModelWeeklyLabel is { Length: > 0 } label)
         {
@@ -500,19 +543,73 @@ public partial class MainWindow : Window
         _h.RowReset.Text = FormatCountdown(s?.FiveHour?.ResetsAt);
         _w.RowReset.Text = FormatWeekly(s?.SevenDay?.ResetsAt);
         _f.RowReset.Text = s?.ModelWeekly is null ? "정보 없음" : FormatWeekly(s.ModelWeekly.ResetsAt);
-        _c.RowReset.Text = s?.ExtraUsageDetail ??
-            (s?.ExtraUsagePct is double x
-                ? (x <= 0 ? "크레딧 사용 없음" : "이번 결제 주기 사용률")
-                : "정보 없음");
+        _claudeCredit.Text = s?.ExtraUsageDetail is { Length: > 0 } d
+            ? "크레딧 " + d
+            : s?.ExtraUsagePct is double x
+                ? (x <= 0 ? "크레딧 사용 없음" : $"크레딧 {x:0}% 사용")
+                : "크레딧 정보 없음";
+
+        ApplyCodex(cx);
 
         string src = s?.Source == "FILE" ? "앱 기록" : "API";
         _footerBase = s is null ? "데이터 없음" : $"{s.FetchedAt:HH:mm:ss} 갱신 · {src}";
         _footer.Text = _footerBase;
         _statusLine.Text = status ?? "";
-        bool relogin = status?.Contains("로그인") == true;
+        bool relogin = IsClaudeLogin(status);
         _statusLine.TextDecorations = relogin ? TextDecorations.Underline : null;
         _statusLine.ToolTip = relogin ? "클릭하면 로그인 터미널이 열립니다" : null;
         _statusLine.Visibility = string.IsNullOrEmpty(status) ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    /// Codex 가 설치되지 않은 PC 에서는 구역째 숨긴다 — 빈 값 두 줄과 죽은 알약 두 개가 남으면 안 된다.
+    public void SetCodexVisible(bool visible)
+    {
+        var v = visible ? Visibility.Visible : Visibility.Collapsed;
+        _codexPillGroup.Visibility = v;
+        _codexRowGroup.Visibility = v;
+    }
+
+    private static bool IsClaudeLogin(string? status) =>
+        status is not null && status.Contains("Claude") && status.Contains("로그인");
+
+    private void ApplyCodex(CodexSnapshot? cx)
+    {
+        SetPill(_codexShort, cx?.Short?.Percent);
+        SetPill(_codexLong, cx?.Long?.Percent);
+        _codexShort.RowReset.Text = FormatCodexReset(cx?.Short);
+        _codexLong.RowReset.Text = FormatCodexReset(cx?.Long);
+        _codexShort.RowName.Text = RowName("5시간", cx?.Short);
+        _codexLong.RowName.Text = RowName("주간", cx?.Long);
+        _codexCredit.Text = cx?.CreditDetail ?? "크레딧 정보 없음";
+
+        // 오른쪽 작은 글씨: 요금제 + 파일 폴백이면 그 사실. 파일 기록은 CLI 를 써야만 갱신되므로
+        // 며칠씩 낡을 수 있고, 낡은 값을 최신인 척 보여주면 안 된다.
+        string plan = cx?.PlanType ?? "";
+        if (cx?.Source == "FILE")
+        {
+            var days = (int)(DateTimeOffset.Now - cx.FetchedAt).TotalDays;
+            plan = (plan.Length > 0 ? plan + " · " : "") + (days >= 1 ? $"기록 {days}일 전" : "기록");
+        }
+        _codexPlan.Text = plan;
+        _codexPlan.Foreground = new SolidColorBrush(cx?.Source == "FILE"
+            ? Color.FromRgb(0x6B, 0x6A, 0x64)
+            : Color.FromRgb(0x88, 0x87, 0x80));
+    }
+
+    // 계정 전체 한도가 아니라 특정 모델 한도가 잡혔을 때만 그 이름을 덧붙인다.
+    // limit_id 원문("codex"/"premium")은 사용자에게 아무 뜻이 없으므로 전체와 같이 취급한다.
+    private static readonly string[] GenericLimitNames = { "전체", "codex", "premium" };
+
+    private static string RowName(string baseName, CodexWindow? w) =>
+        w is null || w.Label.Length == 0 || GenericLimitNames.Contains(w.Label)
+            ? baseName
+            : baseName + " · " + w.Label;
+
+    // 창 길이에 맞는 표기를 고른다. 24시간 이하면 카운트다운, 그 위면 요일+시각.
+    private static string FormatCodexReset(CodexWindow? w)
+    {
+        if (w is null) return "정보 없음";
+        return w.WindowSeconds <= 24 * 60 * 60 ? FormatCountdown(w.ResetsAt) : FormatWeekly(w.ResetsAt);
     }
 
     private void SetPill(Pill p, double? pct)

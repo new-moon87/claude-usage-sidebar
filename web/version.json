@@ -1,14 +1,24 @@
 ﻿{
-    "version":  "0.1.15.0",
-    "downloadUrl":  "https://claude-usage-sidebar.vercel.app/ClaudeSidebar-0.1.15.0.zip",
-    "sha256":  "FADD148D8985771823790FB47798514A50B2AF5B8F4212F0C4F944144A8C899F",
+    "version":  "0.2.0.0",
+    "downloadUrl":  "https://claude-usage-sidebar.vercel.app/ClaudeSidebar-0.2.0.0.zip",
+    "sha256":  "9096FFA5C9D6CD71DC09678F041E61872C5C842BA06517615805F9C58C1C2AC6",
     "notes":  [
-                  "Claude 창이 떠 있는 모니터로 사이드바 자동 이동",
-                  "개발 문서에 따라가기 규칙(함정 15) 추가"
+                  "Codex 사용량 표시 추가 (5시간대 h / 주간대 w 알약)",
+                  "크레딧은 Claude·Codex 모두 상세 패널 텍스트로 이동",
+                  "Claude 또는 Codex 중 하나만 켜도 사이드바 표시"
               ],
-    "releasedAt":  "2026-09-02 21:54",
-    "sizeMb":  0.1,
+    "releasedAt":  "2026-09-15 18:37",
+    "sizeMb":  0.11,
     "history":  [
+                    {
+                        "version":  "0.2.0.0",
+                        "releasedAt":  "2026-09-15 18:37",
+                        "notes":  [
+                                      "Codex 사용량 표시 추가 (5시간대 h / 주간대 w 알약)",
+                                      "크레딧은 Claude·Codex 모두 상세 패널 텍스트로 이동",
+                                      "Claude 또는 Codex 중 하나만 켜도 사이드바 표시"
+                                  ]
+                    },
                     {
                         "version":  "0.1.15.0",
                         "releasedAt":  "2026-09-02 21:54",

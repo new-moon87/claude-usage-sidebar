@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Claude 사용량 사이드바</title>
-<meta name="description" content="Claude Code 사용량 한도를 화면 가장자리에 알약으로 띄워 두는 Windows 상주 앱.">
+<meta name="description" content="Claude Code 와 Codex 의 사용량 한도를 화면 가장자리에 알약으로 띄워 두는 Windows 상주 앱.">
 <style>
   :root {
     --bg: #faf7f2; --fg: #1f1f23; --dim: #6b6b76;
@@ -75,13 +75,14 @@
 <body>
 <main>
   <h1>Claude 사용량 사이드바</h1>
-  <p class="tag">Claude Code 의 남은 한도를 화면 가장자리에 얇게 붙여 둡니다. 마우스를 갖다 대면 자세히 펼쳐집니다.</p>
+  <p class="tag">Claude Code 와 Codex 의 남은 한도를 화면 가장자리에 얇게 붙여 둡니다. 마우스를 갖다 대면 자세히 펼쳐집니다.</p>
 
   <div class="pills" aria-hidden="true">
     <div class="pill"><i style="height:34%;background:#7F77DD"></i><span>H</span></div>
     <div class="pill"><i style="height:60%;background:#EF9F27"></i><span>W</span></div>
     <div class="pill"><i style="height:66%;background:#378ADD"></i><span>F</span></div>
-    <div class="pill"><i style="height:0%;background:#5DCAA5"></i><span>C</span></div>
+    <div class="pill" style="margin-left:10px"><i style="height:12%;background:#10A37F"></i><span>h</span></div>
+    <div class="pill"><i style="height:30%;background:#19C39C"></i><span>w</span></div>
   </div>
 
   <div class="card">
@@ -94,10 +95,10 @@
     <li><strong>H</strong> — 5시간 세션 한도</li>
     <li><strong>W</strong> — 주간 한도 (전체 모델)</li>
     <li><strong>F</strong> — 주간 한도 (모델 전용, 계정에 따라 이름이 바뀝니다)</li>
-    <li><strong>C</strong> — 추가 사용량 크레딧</li>
+    <li><strong>h</strong> · <strong>w</strong> — Codex 의 5시간대 · 주간대 한도 (소문자 + 초록)</li>
   </ul>
   <p class="note">
-    Claude Code 데스크톱 앱을 켜면 저절로 나타나고, 끄면 사라집니다.
+    Claude Code 나 Codex 를 켜면 저절로 나타나고, 다 끄면 사라집니다. 크레딧 잔액은 펼친 패널에 글로 나옵니다.
     85% 를 넘긴 항목은 빨갛게 깜빡입니다.
   </p>
 

@@ -12,6 +12,9 @@ public partial class App : Application
     private ProcessWatcher? _watcher;
     private CredentialStore? _creds;
     private UsageApiClient? _api;
+    private CodexCredentialStore? _codexCreds;
+    private CodexUsageClient? _codexApi;
+    private readonly CodexHistoryReader _codexHistory = new();
     private readonly SettingsStore _settings = new();
     private readonly UsageHistoryReader _history = new();
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(20) };
@@ -21,10 +24,15 @@ public partial class App : Application
     private readonly List<DispatcherTimer> _reprobes = new();
     private string _lastFingerprint = "";
     private UsageSnapshot? _last;
+    private CodexSnapshot? _lastCodex;
     private string? _status;
+    private string? _codexStatus;
     private bool _fetching;
     private DateTimeOffset _lastManual = DateTimeOffset.MinValue;
     private DateTimeOffset _usageBlockedUntil = DateTimeOffset.MinValue;
+    private DateTimeOffset _codexBlockedUntil = DateTimeOffset.MinValue;
+    private DateTimeOffset _codexLastApi = DateTimeOffset.MinValue;
+    private bool _codexPresent;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -51,8 +59,13 @@ public partial class App : Application
         _settings.Load();
         _creds = new CredentialStore(_http);
         _api = new UsageApiClient(_http);
+        _codexCreds = new CodexCredentialStore(_http);
+        _codexApi = new CodexUsageClient(_http);
 
         _window = new MainWindow { Pinned = _settings.Settings.Pinned };
+        _codexPresent = CodexCredentialStore.IsInstalled();
+        _window.SetCodexVisible(_codexPresent);
+        Log.Write("[codex] 설치 감지: " + (_codexPresent ? "있음" : "없음 — 구역 숨김"));
         // 구버전 설정(주 모니터 기준 DIP Top)은 물리 Y 로 한 번 옮겨 준다.
         int? physY = _settings.Settings.PhysY
                      ?? (_settings.Settings.Top is double t ? (int)Math.Round(t) : null);
@@ -105,7 +118,7 @@ public partial class App : Application
 
         // 카운트다운 텍스트는 30초마다 다시 계산한다.
         _tickTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
-        _tickTimer.Tick += (_, _) => _window?.ApplySnapshot(_last, _status);
+        _tickTimer.Tick += (_, _) => _window?.ApplySnapshot(_last, _lastCodex, StatusLine());
 
         Microsoft.Win32.SystemEvents.PowerModeChanged += (_, pe) =>
         {
@@ -131,7 +144,8 @@ public partial class App : Application
 
         // 첫 화면은 앱 기록 파일로 즉시 채우고, 곧바로 API로 갱신한다.
         _last = _history.ReadLast();
-        _window.ApplySnapshot(_last, null);
+        if (_codexPresent) _lastCodex = _codexHistory.ReadLast();
+        _window.ApplySnapshot(_last, _lastCodex, null);
         _watcher.Start();
         UpdateVisibility();
         _ = RefreshAsync(force: true);
@@ -309,12 +323,15 @@ public partial class App : Application
         if (!force && !(_settings.Settings.ForceShow || (_watcher?.IsClaudeRunning ?? false))) return;
         if (DateTimeOffset.Now < _usageBlockedUntil)
         {
-            _window?.ApplySnapshot(_last, _status);
+            await RefreshCodexAsync(force);
+            _window?.ApplySnapshot(_last, _lastCodex, StatusLine());
             return;
         }
         _fetching = true;
         try
         {
+            await RefreshCodexAsync(force);
+
             UsageSnapshot? snap = null;
             System.Net.HttpStatusCode code = 0;
             var token = await _creds.GetAccessTokenAsync();
@@ -339,30 +356,115 @@ public partial class App : Application
                 if (file is not null && (_last is null || _last.Source == "FILE"))
                     _last = file;
                 if (token is null)
-                    _status = _creds.LastError ?? "재로그인 필요";
+                    _status = Tag("Claude", _creds.LastError ?? "재로그인 필요");
                 else if ((int)code == 429)
                 {
                     // 엔드포인트 레이트리밋: 3분간 폴링을 멈춰 페널티가 풀리게 한다
                     _usageBlockedUntil = DateTimeOffset.Now.AddMinutes(3);
-                    _status = "요청이 너무 잦음 · 잠시 후 자동 갱신";
+                    _status = "Claude · 요청이 너무 잦음 · 잠시 후 자동 갱신";
                 }
                 else
-                    _status = $"API 오류 (HTTP {(int)code})";
+                    _status = $"Claude · API 오류 (HTTP {(int)code})";
             }
         }
         catch (Exception ex)
         {
-            _status = "오류";
+            _status = "Claude · 오류";
             Log.Write("refresh error: " + ex.Message);
         }
         finally
         {
             _fetching = false;
-            _window?.ApplySnapshot(_last, _status);
+            _window?.ApplySnapshot(_last, _lastCodex, StatusLine());
             Log.Write($"refresh done: src={_last?.Source} H={_last?.FiveHour?.Utilization} " +
                       $"W={_last?.SevenDay?.Utilization} F={_last?.ModelWeekly?.Utilization} " +
                       $"C={_last?.ExtraUsagePct} status={_status}");
         }
+    }
+
+    // Codex 사용량. Claude 와 완전히 독립이라 한쪽이 죽어도 다른 쪽은 그대로 보인다.
+    private async Task RefreshCodexAsync(bool force)
+    {
+        if (!_codexPresent || _codexCreds is null || _codexApi is null) return;
+
+        // Codex 엔드포인트는 앞단 봇 완화가 붙어 있어 자주 두드리면 403 HTML 을 돌려준다(실측).
+        // 어차피 Codex 사용량은 Codex 를 쓸 때만 변하고, 그때는 CLI 기록 파일이 실시간으로 갱신된다.
+        // 그래서 API 는 드물게만 부르고 평상시에는 파일을 본다.
+        var gap = force ? TimeSpan.FromSeconds(60) : TimeSpan.FromMinutes(10);
+        if (DateTimeOffset.Now < _codexBlockedUntil || DateTimeOffset.Now - _codexLastApi < gap)
+        {
+            var cached = _codexHistory.ReadLast();
+            if (cached is not null && (_lastCodex is null || _lastCodex.Source == "FILE"))
+                _lastCodex = cached;
+            return;
+        }
+        _codexLastApi = DateTimeOffset.Now;
+        try
+        {
+            CodexSnapshot? snap = null;
+            System.Net.HttpStatusCode code = 0;
+            var auth = await _codexCreds.GetAuthAsync();
+            if (auth is not null)
+            {
+                (snap, code) = await _codexApi.FetchAsync(auth);
+                // 파일에 만료 시각이 없어 미리 못 거른다 — 401 을 신호 삼아 한 번만 갱신 후 재시도한다.
+                if (snap is null && (int)code == 401)
+                {
+                    auth = await _codexCreds.GetAuthAsync(forceRefresh: true);
+                    if (auth is not null) (snap, code) = await _codexApi.FetchAsync(auth);
+                }
+            }
+
+            if (snap is not null)
+            {
+                _lastCodex = snap;
+                _codexStatus = null;
+            }
+            else
+            {
+                // API 가 안 되면 CLI 기록으로 내려간다. 이미 API 값을 들고 있으면 덮어쓰지 않는다.
+                var file = _codexHistory.ReadLast();
+                if (file is not null && (_lastCodex is null || _lastCodex.Source == "FILE"))
+                    _lastCodex = file;
+                if (auth is null)
+                    _codexStatus = Tag("Codex", _codexCreds.LastError ?? "재로그인 필요");
+                else if ((int)code == 403)
+                {
+                    // 403 은 권한 문제가 아니라 앞단이 이 클라이언트를 막는 것이다(JSON 이 아니라 HTML 이 온다).
+                    // .NET 은 조용한 상태에서 첫 요청도 막히고 파이썬은 같은 순간에 통과한다 — 실측.
+                    // 사용자가 할 수 있는 일이 없으므로 빨간 오류 줄을 띄우지 않는다.
+                    // 기록 소스가 정상 경로가 되고, 패널 머리글의 "기록" 표시로 출처가 드러난다.
+                    _codexBlockedUntil = DateTimeOffset.Now.AddHours(6);
+                    _codexStatus = null;
+                }
+                else if ((int)code == 429)
+                {
+                    _codexBlockedUntil = DateTimeOffset.Now.AddMinutes(30);
+                    _codexStatus = "Codex · 요청이 너무 잦음 · 잠시 후 자동 갱신";
+                }
+                else
+                    _codexStatus = $"Codex · API 오류 (HTTP {(int)code})";
+            }
+        }
+        catch (Exception ex)
+        {
+            _codexStatus = "Codex · 오류";
+            Log.Write("[codex] refresh error: " + ex.Message);
+        }
+        Log.Write($"codex refresh done: src={_lastCodex?.Source} h={_lastCodex?.Short?.Percent} " +
+                  $"w={_lastCodex?.Long?.Percent} plan={_lastCodex?.PlanType} " +
+                  $"credit={_lastCodex?.CreditDetail} status={_codexStatus}");
+    }
+
+    // 제품명이 이미 들어 있는 메시지는 그대로 둔다(같은 말을 두 번 붙이지 않게).
+    private static string Tag(string product, string message) =>
+        message.Contains(product) ? message : product + " · " + message;
+
+    private string? StatusLine()
+    {
+        if (string.IsNullOrEmpty(_status)) return _codexStatus;
+        if (string.IsNullOrEmpty(_codexStatus)) return _status;
+        return _status + Environment.NewLine + _codexStatus;
     }
 
     protected override void OnExit(ExitEventArgs e)

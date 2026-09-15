@@ -14,6 +14,20 @@ public class UsageSnapshot
     public string Source = "API";
 }
 
+// Codex 한도 창 하나. 창 길이(초)를 반드시 같이 들고 다닌다 —
+// 응답의 primary/secondary 라는 이름은 창 길이와 무관하다(함정 ⑯).
+public record CodexWindow(double Percent, DateTimeOffset? ResetsAt, string Label, int WindowSeconds);
+
+public class CodexSnapshot
+{
+    public CodexWindow? Short;        // 24시간 이하 창 중 사용률이 가장 높은 것
+    public CodexWindow? Long;         // 24시간 초과 창 중 사용률이 가장 높은 것
+    public string? CreditDetail;
+    public string? PlanType;
+    public DateTimeOffset FetchedAt = DateTimeOffset.Now;
+    public string Source = "API";
+}
+
 public class AppSettings
 {
     // 구버전 호환용(주 모니터 기준 DIP). 신규 저장은 MonitorName + PhysY 를 쓴다.
