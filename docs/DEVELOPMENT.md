@@ -186,39 +186,50 @@ anthropic-beta: oauth-2025-04-20
   모니터 판정이 엉뚱한 곳으로 나온다.
 - 쓸 만한 창을 못 찾으면 **마지막 값을 유지**한다. 잠시 다른 앱을 쓴다고 사이드바가 되돌아가면 안 된다.
 
-### 3.6 Codex 사용량 — 소스 두 개
+### 3.6 Codex 사용량 — Codex 자기 바이너리에 물어본다
 
-Claude 와 완전히 독립이다. 한쪽이 죽어도 다른 쪽은 그대로 보여야 하므로 스냅샷·상태·백오프를 따로 둔다.
+Claude 와 완전히 독립이다. 한쪽이 죽어도 다른 쪽은 그대로 보여야 하므로 스냅샷·상태를 따로 둔다.
+**이 앱은 Codex 토큰을 읽지도 갱신하지도 않는다.** 아래 두 함정을 다 피하고 나면 남는 길이 이것뿐이다.
 
-**자격 증명** `~/.codex/auth.json` (실측 구조)
+**1순위 — app-server (JSON-RPC over stdio)**
 
-```json
-{ "auth_mode": "chatgpt", "OPENAI_API_KEY": null,
-  "tokens": { "id_token": "...", "access_token": "...", "refresh_token": "...", "account_id": "..." },
-  "last_refresh": "2026-09-14T07:21:08.000000Z" }
+Codex CLI 바이너리를 잠깐 띄워 한 줄 물어보고 죽인다. 실측 왕복 약 3초.
+
+```
+codex.exe app-server
+→ {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"clientInfo":{"name":"codex","title":"...","version":"1.0.0"}}}
+← {"id":1,"result":{...}}
+→ {"jsonrpc":"2.0","method":"initialized","params":{}}
+→ {"jsonrpc":"2.0","id":2,"method":"account/rateLimits/read","params":{}}
+← {"id":2,"result":{ ... }}
 ```
 
-만료 시각이 파일에 없다(JWT 안에만 있다). 그러니 유효기간을 추측하지 말고 **그냥 써 본 뒤 401 이 오면 한 번 갱신**한다.
-갱신은 `POST https://auth.openai.com/oauth/token`, 본문
-`{client_id, grant_type:"refresh_token", refresh_token, scope:"openid profile email"}`.
-`client_id` 는 `app_EMoamEEZ73f0CkXaXp7hrann` — Codex CLI 바이너리에 박혀 배포되는 공개값이라 비밀이 아니다.
-write-back 은 3.1 과 같은 불변식(미지 키 보존 · 원자적 교체 · `.bak` · 경합 감지)을 그대로 지킨다.
-
-**API** `GET https://chatgpt.com/backend-api/codex/usage` (`/wham/usage` 도 같은 응답을 준다)
+응답(실측, **camelCase** — HTTP 응답·rollout 기록과 필드명이 서로 다 다르다):
 
 ```json
-{ "plan_type": "prolite",
-  "rate_limit": { "primary_window": { "used_percent": 3, "limit_window_seconds": 604800, "reset_at": 1789971133 },
-                  "secondary_window": null },
-  "code_review_rate_limit": null,
-  "additional_rate_limits": [
-    { "limit_name": "GPT-5.3-Codex-Spark",
-      "rate_limit": { "primary_window": { "used_percent": 0, "limit_window_seconds": 18000, "reset_at": ... },
-                      "secondary_window": { "used_percent": 0, "limit_window_seconds": 604800, "reset_at": ... } } } ],
-  "credits": { "has_credits": false, "unlimited": false, "balance": "0" } }
+{ "rateLimits": { "limitId": "codex", "limitName": null,
+                  "primary": { "usedPercent": 26, "windowDurationMins": 10080, "resetsAt": 1789971133 },
+                  "secondary": null,
+                  "credits": { "hasCredits": false, "unlimited": false, "balance": "0" },
+                  "planType": "prolite" },
+  "rateLimitsByLimitId": {
+    "codex":           { ...위와 같음... },
+    "codex_bengalfox": { "limitName": "GPT-5.3-Codex-Spark",
+                         "primary":   { "usedPercent": 0, "windowDurationMins": 300,   "resetsAt": ... },
+                         "secondary": { "usedPercent": 0, "windowDurationMins": 10080, "resetsAt": ... } } },
+  "rateLimitResetCredits": { "availableCount": 0, "credits": [] } }
 ```
 
-**폴백** `~/.codex/sessions/<년>/<월>/<일>/rollout-*.jsonl` 의 `payload.type == "token_count"` 줄
+- `clientInfo.name` 은 `codex` 로 보낸다(다른 이름은 거부되는 경로가 있다).
+- `initialize` 응답을 **받고 나서** `initialized` 를 보낸다. 그 사이 알림 줄(`remoteControl/status/changed` 등)이
+  끼어들므로, id 로 골라 읽고 나머지는 흘린다.
+- 네이티브 바이너리를 직접 찾아 띄운다: `%APPDATA%\npm\node_modules\@openai\codex\node_modules\@openai\codex-*\vendor\*\bin\codex.exe`.
+  없으면 PATH 의 `codex.exe`/`codex.cmd`(런처를 거치면 node 가 한 번 더 뜬다). 둘 다 없으면 2순위로 내려간다.
+- 프로세스를 띄우는 비용이 있으니 **10분에 한 번**만 부른다(수동 새로고침은 60초). 끝나면 반드시 죽인다.
+
+**2순위 — rollout 기록 파일** (폴백)
+
+`~/.codex/sessions/<년>/<월>/<일>/rollout-*.jsonl` 의 `payload.type == "token_count"` 줄:
 
 ```json
 "rate_limits": { "limit_id": "codex", "plan_type": "plus",
@@ -227,22 +238,21 @@ write-back 은 3.1 과 같은 불변식(미지 키 보존 · 원자적 교체 ·
   "credits":   { "has_credits": false, "unlimited": false, "balance": null } }
 ```
 
-가장 최근 파일 하나만, **뒤에서부터** 훑어 첫 `token_count` 에서 멈춘다. `FileShare.ReadWrite | Delete` 로 열 것.
-이 기록은 Codex CLI 가 돌 때 실시간으로 쌓인다 — 즉 **사용량이 실제로 변하는 순간에는 항상 최신**이고,
-Codex 를 안 쓰는 동안에만 낡는다. 낡은 값을 최신인 척 보여주면 안 되므로 소스와 경과일을 화면에 같이 띄운다.
-(데스크톱 앱의 `thread_history_1.sqlite` 에는 한도가 아예 없다 — 실측 0건. 거기서 찾지 말 것.)
+가장 최근 파일 하나만, **뒤에서부터 꼬리 256KB** 안에서 첫 `token_count` 을 찾고 멈춘다.
+`FileShare.ReadWrite | Delete` 로 열고, 수정 시각이 그대로면 다시 읽지 않는다.
+세션 폴더는 통째로 수백 MB까지 자라고(실측 493MB) **파일 하나가 750MB를 넘기도 한다** — 절대 통째로 읽지 말 것.
+꼬리를 자른 지점이 줄 중간일 수 있으니 첫 줄은 버리고, 깨진 줄은 조용히 건너뛴다.
 
-> **함정 ⑯ (창 이름이 창 길이를 뜻하지 않는다)** — `primary_window` 를 5시간, `secondary_window` 를 주간으로
-> 짐작하면 틀린다. 실측: prolite 계정은 `primary_window` 가 **604800초(7일)** 이고 `secondary_window` 는 null 이며,
-> 5시간(18000초) 창은 `additional_rate_limits[]` 안 모델별 한도에 들어 있다. 무료 계정 기록에서는 43200분(30일)도 나왔다.
-> **반드시 `limit_window_seconds`(파일은 `window_minutes`) 값으로 분류할 것.** 이 앱은 24시간을 경계로 갈라
-> 각 그룹에서 **사용률이 가장 높은 창**을 알약에 쓴다 — 먼저 막히는 한도가 사용자에게 의미 있는 값이다.
-> 어느 창이든 null 일 수 있고, `credits.balance` 는 숫자가 아니라 **문자열**("0")로 온다.
+> **함정 ⑯ (창 이름이 창 길이를 뜻하지 않는다)** — `primary` 를 5시간, `secondary` 를 주간으로 짐작하면 틀린다.
+> 실측: prolite 계정의 계정 전체 한도는 `primary` 가 **10080분(7일)** 이고 `secondary` 는 null 이며,
+> 5시간(300분) 창은 모델별 한도 쪽에 있다. 무료 계정 기록에서는 43200분(30일)도 나왔다.
+> **반드시 `windowDurationMins`(기록 파일은 `window_minutes`) 값으로 분류할 것.** 이 앱은 24시간을 경계로 갈라
+> 각 무리에서 **사용률이 가장 높은 창**을 알약에 쓴다 — 먼저 막히는 한도가 사용자에게 의미 있는 값이다.
+> 어느 창이든 null 일 수 있고, `balance` 는 숫자가 아니라 **문자열**("0")로 온다.
 
-> **함정 ⑰ (앞단 봇 완화 — .NET 은 이 엔드포인트를 못 뚫는다)** — 사용량 엔드포인트 앞에는 봇 완화가 붙어 있고,
-> 막히면 401/403 JSON 이 아니라 **10KB짜리 HTML 차단 페이지**가 온다.
->
-> 실측 결과는 이렇다. 7분간 아무 요청도 보내지 않은 뒤 한 번씩 쐈을 때:
+> **함정 ⑰ (HTTP 사용량 엔드포인트는 Windows 에서 못 뚫는다)** — `GET https://chatgpt.com/backend-api/codex/usage`
+> 는 같은 데이터를 주지만 앞단 봇 완화가 붙어 있고, 막히면 401/403 JSON 이 아니라 **10KB짜리 HTML 차단 페이지**가 온다.
+> 7분간 아무 요청도 보내지 않은 뒤 한 번씩 쐈을 때:
 >
 > | 클라이언트 | 결과 |
 > |---|---|
@@ -252,17 +262,16 @@ Codex 를 안 쓰는 동안에만 낡는다. 낡은 값을 최신인 척 보여�
 > | node `fetch` (OpenSSL + 브라우저풍 헤더) | 403 |
 >
 > .NET 쪽은 헤더를 파이썬과 똑같이 맞춰도, ALPN 광고를 빼도(`ConnectCallback` + `SslClientAuthenticationOptions`),
-> TLS 1.2 로 고정해도, HTTP/2 를 강제해도 전부 403 이었다. **Windows 의 TLS 스택으로는 통과할 방법이 없다.**
-> 그러니 이 앱에서 Codex 사용량의 **정상 경로는 rollout 기록 파일**이고, API 호출은 "되면 좋은" 부가 경로다.
-> 코드는 남겨 둔다 — 비용이 없고, 다른 환경이나 정책 변경에서는 통과할 수 있다.
->
-> 구현 규칙:
-> - **User-Agent 를 반드시 붙일 것**(`codex_cli_rs/<버전>`). 없으면 확실히 403 이다. 토큰 갱신 요청에도 붙인다.
->   (토큰 갱신 호스트 `auth.openai.com` 은 SChannel 에서도 정상 응답한다 — 막히는 건 `chatgpt.com` 쪽뿐이다.)
-> - **사용량 폴링(60초)에 Codex 를 끼워 넣지 말 것.** 최소 10분 간격, 수동 새로고침도 60초 간격으로 제한한다.
->   몇 분 사이에 스무 번쯤 두드리면 파이썬까지 포함해 전부 몇 분간 막힌다.
-> - 403 은 사용자가 손쓸 수 없는 상태다. **빨간 오류 줄을 띄우지 말고** 조용히 기록 소스로 내려간 뒤
->   6시간 쉰다. 출처는 패널 머리글의 "기록" 표시로 드러낸다. 429 만 30분 백오프 + 안내 문구.
+> TLS 1.2 로 고정해도, HTTP/2 를 강제해도 전부 403 이었다. **이 길은 버린다.**
+> app-server 는 그 요청을 Codex 가 자기 스택으로 보내 주므로 통과하고, 덤으로 토큰 취급 코드가 통째로 없어진다.
+> (빈도도 문제다 — 몇 분 사이 스무 번쯤 두드리면 파이썬까지 포함해 전부 몇 분간 막힌다. 그래서 10분 간격.)
+
+> **함정 ⑲ (기록 파일에는 그 요청에 적용된 한도 하나만 들어 있다)** — 이게 "GPT 사용량 0%" 의 정체다.
+> rollout 의 `rate_limits` 는 계정 전체 요약이 아니라 **그 요청에 걸린 한도 한 덩어리**다.
+> 특정 모델만 쓰는 세션이면 그 모델 한도만 쌓인다 — 실측: 계정 전체가 26% 인 시점에
+> 최신 파일을 32MB 거슬러 올라가도 `codex_bengalfox`(Spark, 0%) 하나뿐이었고 전체 한도는 아예 없었다.
+> 그대로 보여 주면 **0% 로 보인다.** 그래서 1순위는 반드시 app-server 이고, 기록은 못 띄울 때의 폴백이다.
+> 폴백으로 내려갔을 땐 화면에 **어느 한도인지 이름을 같이** 띄워 0% 가 오해되지 않게 한다.
 
 ## 4. 프로젝트 구조
 
@@ -279,8 +288,7 @@ src/ClaudeSidebar/
    ├─ CredentialStore.cs         — 3.1~3.2 (토큰 관리 전부)
    ├─ UsageApiClient.cs          — 3.3 (JsonDocument 관대 파싱)
    ├─ UsageHistoryReader.cs      — 3.4
-   ├─ CodexCredentialStore.cs    — 3.6 (Codex 토큰 관리)
-   ├─ CodexUsageClient.cs        — 3.6 (사용량 API)
+   ├─ CodexAppServer.cs          — 3.6 (codex app-server 로 계정 한도 조회)
    ├─ CodexHistoryReader.cs      — 3.6 (rollout 폴백)
    ├─ ProcessWatcher.cs          — 3.5
    ├─ DisplayInfo.cs             — 모니터 열거/DPI/물리 좌표 (캐시 금지)
@@ -409,7 +417,8 @@ _pinBtn.Text = Pinned ? "\uE77A" : "\uE718";   // Segoe MDL2 Assets: Unpin / Pin
 - 따라가기 호출은 두 군데뿐이다: 워처의 실행 상태 변경 처리(표시보다 먼저)와 2초 배치 그물 맨 앞. 함정 ⑮ 참조.
 - `RefreshAsync`: `_fetching` 가드(재진입 금지) → 429 백오프 중이면 즉시 반환 → 토큰 확보 → API → 실패 시 폴백 →
   `finally`에서 항상 `ApplySnapshot` + 로그 1줄 (`src=API H=.. W=.. F=.. C=.. status=..` — 이 로그가 검증 수단이다).
-- `RefreshCodexAsync`: Claude 와 같은 모양이되 **자체 백오프와 자체 상태 문자열**을 쓴다(함정 ⑰).
+- `RefreshCodexAsync`: Claude 갱신이 **끝난 뒤에** 부른다 — app-server 는 프로세스를 띄우느라 몇 초 걸리므로
+  앞에 두면 Claude 값이 그만큼 늦는다. 자체 간격(10분)과 자체 상태 문자열을 쓴다.
   상태 줄은 두 제품 몫을 줄바꿈으로 합쳐 보여주고, 각 메시지에 제품명을 붙인다 —
   재로그인 클릭은 Claude 터미널을 여는 동작이라 Codex 문제일 때 눌리면 안 된다.
 - 자동 시작: 설정 Autostart=true(기본)면 시작 시마다 현재 exe 경로로 HKCU Run 키 갱신.
@@ -442,9 +451,9 @@ dotnet publish src/ClaudeSidebar/ClaudeSidebar.csproj -c Release -o dist
 8. Claude 창을 보조 모니터로 옮김 → 수 초 내 사이드바가 그 화면 오른쪽 끝으로 이동하고, 되돌리면 따라서 돌아옴
    (혼합 DPI 간 이동이 핵심 — `[place:follow]` 마지막 줄이 `일치`여야 하고 실제 우변이 `work.Right` 와 같아야 한다).
 9. 사이드바를 다른 모니터로 끌어다 놓은 뒤 Claude 를 그대로 두면, 2초 그물이 도는 동안에도 제자리에 머문다.
-10. `codex refresh done: src=API h=.. w=.. plan=.. credit=..` 가 찍히고, Codex 알약 두 개에 값이 든다.
-11. Codex 로그아웃 상태 / API 차단(403) 상태에서도 Claude 쪽 값은 멀쩡히 남고, Codex 만 조용히 기록 소스로 내려간다
-    (403 에는 빨간 상태 줄이 뜨지 않아야 한다 — 함정 ⑰).
+10. `codex refresh done: src=CLI short=..(이름) long=..(이름) plan=..` 이 찍히고, Codex 알약 두 개에 값이 든다.
+    **`src=FILE` 로 떨어졌는데 값이 0% 면 함정 ⑲ 를 의심할 것** — 계정 전체가 아니라 모델별 한도를 본 것이다.
+11. Codex CLI 바이너리가 없거나 app-server 가 실패해도 Claude 쪽 값은 멀쩡히 남고, Codex 만 조용히 기록 소스로 내려간다.
 12. `~/.codex` 가 없는 PC 에서 Codex 알약 두 개와 상세 구역이 통째로 사라지고, 상태 줄에도 Codex 문구가 없다.
 13. 창 높이 400 에서 상세 패널이 잘리지 않는다(알약 5개 + 크레딧 두 줄 + 상태 줄 두 줄까지).
 
@@ -453,7 +462,6 @@ dotnet publish src/ClaudeSidebar/ClaudeSidebar.csproj -c Release -o dist
 - 사용량·갱신 엔드포인트는 **비공식**이며 예고 없이 바뀔 수 있다. 파서가 관대해서 지표가 `-`로 빠질 뿐 앱은 죽지 않는다.
 - 알약 사이 6px 틈은 히트테스트가 비어 있어, 정확히 그 지점에 커서를 두면 패널이 안 펼쳐진다 (실사용 영향 미미).
 - 폴백 모드에서는 F 지표·리셋 시각이 없다 (3.4 참고).
-- Codex 사용량 API 는 Windows(.NET) 에서 앞단에 막힌다(함정 ⑰). 실질적으로 Codex 값은 CLI 기록 파일에서 온다 —
-  Codex 를 쓰는 동안에는 최신이고, 한동안 안 쓰면 낡은 채로 "기록 N일 전" 과 함께 표시된다.
-- Codex 토큰 갱신 경로(401 → refresh)는 실제 만료를 기다려야 밟히므로 아직 실측 검증되지 않았다.
-  구조는 3.1 과 같고, 실패해도 기록 소스로 내려갈 뿐 Claude 쪽에는 영향이 없다.
+- Codex 값을 제대로 보려면 **Codex CLI 바이너리가 설치돼 있어야 한다**(함정 ⑰). 데스크톱 앱만 있는 PC 에서는
+  기록 파일 폴백으로 내려가고, 그 값은 함정 ⑲ 때문에 계정 전체가 아닐 수 있다.
+- app-server 호출은 10분에 한 번이라 Codex 사용량 표시는 최대 10분까지 늦을 수 있다.

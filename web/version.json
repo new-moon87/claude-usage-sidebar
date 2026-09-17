@@ -1,14 +1,24 @@
 ﻿{
-    "version":  "0.2.1.0",
-    "downloadUrl":  "https://claude-usage-sidebar.vercel.app/ClaudeSidebar-0.2.1.0.zip",
-    "sha256":  "F1DE1342D82C0B27641583269789B66416A230D2A78DE70AC25E8490984DB00A",
+    "version":  "0.2.2.0",
+    "downloadUrl":  "https://claude-usage-sidebar.vercel.app/ClaudeSidebar-0.2.2.0.zip",
+    "sha256":  "AE88AB98EBE9D9822BEB314FCC2FD74AABA3D9E8824D8892E661A767BAE8DE04",
     "notes":  [
-                  "알약 표기를 CH·CW·CF / GH·GW 로 변경 (앞 글자가 제품)",
-                  "알약 안 글자를 전부 세로로 쌓아 100%(세 자리)까지 안 잘리게"
+                  "Codex 사용량을 codex app-server 에서 받아 계정 전체 한도가 정확히 나오게 수정",
+                  "세션 기록만 볼 때 모델 전용 한도가 0%로 보이던 문제 해결",
+                  "Codex 토큰을 읽고 갱신하던 코드 제거 (더 이상 로그인 정보를 만지지 않음)"
               ],
-    "releasedAt":  "2026-09-15 19:06",
+    "releasedAt":  "2026-09-17 20:55",
     "sizeMb":  0.11,
     "history":  [
+                    {
+                        "version":  "0.2.2.0",
+                        "releasedAt":  "2026-09-17 20:55",
+                        "notes":  [
+                                      "Codex 사용량을 codex app-server 에서 받아 계정 전체 한도가 정확히 나오게 수정",
+                                      "세션 기록만 볼 때 모델 전용 한도가 0%로 보이던 문제 해결",
+                                      "Codex 토큰을 읽고 갱신하던 코드 제거 (더 이상 로그인 정보를 만지지 않음)"
+                                  ]
+                    },
                     {
                         "version":  "0.2.1.0",
                         "releasedAt":  "2026-09-15 19:06",

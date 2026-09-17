@@ -12,8 +12,6 @@ public partial class App : Application
     private ProcessWatcher? _watcher;
     private CredentialStore? _creds;
     private UsageApiClient? _api;
-    private CodexCredentialStore? _codexCreds;
-    private CodexUsageClient? _codexApi;
     private readonly CodexHistoryReader _codexHistory = new();
     private readonly SettingsStore _settings = new();
     private readonly UsageHistoryReader _history = new();
@@ -30,7 +28,6 @@ public partial class App : Application
     private bool _fetching;
     private DateTimeOffset _lastManual = DateTimeOffset.MinValue;
     private DateTimeOffset _usageBlockedUntil = DateTimeOffset.MinValue;
-    private DateTimeOffset _codexBlockedUntil = DateTimeOffset.MinValue;
     private DateTimeOffset _codexLastApi = DateTimeOffset.MinValue;
     private bool _codexPresent;
 
@@ -59,11 +56,9 @@ public partial class App : Application
         _settings.Load();
         _creds = new CredentialStore(_http);
         _api = new UsageApiClient(_http);
-        _codexCreds = new CodexCredentialStore(_http);
-        _codexApi = new CodexUsageClient(_http);
 
         _window = new MainWindow { Pinned = _settings.Settings.Pinned };
-        _codexPresent = CodexCredentialStore.IsInstalled();
+        _codexPresent = CodexAppServer.IsInstalled();
         _window.SetCodexVisible(_codexPresent);
         Log.Write("[codex] 설치 감지: " + (_codexPresent ? "있음" : "없음 — 구역 숨김"));
         // 구버전 설정(주 모니터 기준 DIP Top)은 물리 Y 로 한 번 옮겨 준다.
@@ -330,8 +325,6 @@ public partial class App : Application
         _fetching = true;
         try
         {
-            await RefreshCodexAsync(force);
-
             UsageSnapshot? snap = null;
             System.Net.HttpStatusCode code = 0;
             var token = await _creds.GetAccessTokenAsync();
@@ -366,6 +359,8 @@ public partial class App : Application
                 else
                     _status = $"Claude · API 오류 (HTTP {(int)code})";
             }
+
+            await RefreshCodexAsync(force);
         }
         catch (Exception ex)
         {
@@ -383,15 +378,16 @@ public partial class App : Application
     }
 
     // Codex 사용량. Claude 와 완전히 독립이라 한쪽이 죽어도 다른 쪽은 그대로 보인다.
+    //
+    // 값은 Codex 자기 바이너리(app-server)에서 받는다. HTTP 로 직접 받는 길은 Windows 에서 막혀 있고,
+    // rollout 기록만으로는 그 세션이 쓴 모델 한도만 보여 계정 전체가 0% 로 보인다(실측).
+    // 프로세스를 띄우는 비용이 있으니 자주 부르지 않는다.
     private async Task RefreshCodexAsync(bool force)
     {
-        if (!_codexPresent || _codexCreds is null || _codexApi is null) return;
+        if (!_codexPresent) return;
 
-        // Codex 엔드포인트는 앞단 봇 완화가 붙어 있어 자주 두드리면 403 HTML 을 돌려준다(실측).
-        // 어차피 Codex 사용량은 Codex 를 쓸 때만 변하고, 그때는 CLI 기록 파일이 실시간으로 갱신된다.
-        // 그래서 API 는 드물게만 부르고 평상시에는 파일을 본다.
         var gap = force ? TimeSpan.FromSeconds(60) : TimeSpan.FromMinutes(10);
-        if (DateTimeOffset.Now < _codexBlockedUntil || DateTimeOffset.Now - _codexLastApi < gap)
+        if (DateTimeOffset.Now - _codexLastApi < gap)
         {
             var cached = _codexHistory.ReadLast();
             if (cached is not null && (_lastCodex is null || _lastCodex.Source == "FILE"))
@@ -399,22 +395,10 @@ public partial class App : Application
             return;
         }
         _codexLastApi = DateTimeOffset.Now;
+
         try
         {
-            CodexSnapshot? snap = null;
-            System.Net.HttpStatusCode code = 0;
-            var auth = await _codexCreds.GetAuthAsync();
-            if (auth is not null)
-            {
-                (snap, code) = await _codexApi.FetchAsync(auth);
-                // 파일에 만료 시각이 없어 미리 못 거른다 — 401 을 신호 삼아 한 번만 갱신 후 재시도한다.
-                if (snap is null && (int)code == 401)
-                {
-                    auth = await _codexCreds.GetAuthAsync(forceRefresh: true);
-                    if (auth is not null) (snap, code) = await _codexApi.FetchAsync(auth);
-                }
-            }
-
+            var snap = await CodexAppServer.ReadAsync(TimeSpan.FromSeconds(30));
             if (snap is not null)
             {
                 _lastCodex = snap;
@@ -422,38 +406,21 @@ public partial class App : Application
             }
             else
             {
-                // API 가 안 되면 CLI 기록으로 내려간다. 이미 API 값을 들고 있으면 덮어쓰지 않는다.
+                // app-server 가 안 되면 기록 파일로 내려간다. 이미 CLI 값을 들고 있으면 덮어쓰지 않는다.
                 var file = _codexHistory.ReadLast();
                 if (file is not null && (_lastCodex is null || _lastCodex.Source == "FILE"))
                     _lastCodex = file;
-                if (auth is null)
-                    _codexStatus = Tag("Codex", _codexCreds.LastError ?? "재로그인 필요");
-                else if ((int)code == 403)
-                {
-                    // 403 은 권한 문제가 아니라 앞단이 이 클라이언트를 막는 것이다(JSON 이 아니라 HTML 이 온다).
-                    // .NET 은 조용한 상태에서 첫 요청도 막히고 파이썬은 같은 순간에 통과한다 — 실측.
-                    // 사용자가 할 수 있는 일이 없으므로 빨간 오류 줄을 띄우지 않는다.
-                    // 기록 소스가 정상 경로가 되고, 패널 머리글의 "기록" 표시로 출처가 드러난다.
-                    _codexBlockedUntil = DateTimeOffset.Now.AddHours(6);
-                    _codexStatus = null;
-                }
-                else if ((int)code == 429)
-                {
-                    _codexBlockedUntil = DateTimeOffset.Now.AddMinutes(30);
-                    _codexStatus = "Codex · 요청이 너무 잦음 · 잠시 후 자동 갱신";
-                }
-                else
-                    _codexStatus = $"Codex · API 오류 (HTTP {(int)code})";
+                _codexStatus = _lastCodex is null ? "Codex · 사용량을 못 읽음" : null;
             }
         }
         catch (Exception ex)
         {
-            _codexStatus = "Codex · 오류";
+            _codexStatus = null;
             Log.Write("[codex] refresh error: " + ex.Message);
         }
-        Log.Write($"codex refresh done: src={_lastCodex?.Source} h={_lastCodex?.Short?.Percent} " +
-                  $"w={_lastCodex?.Long?.Percent} plan={_lastCodex?.PlanType} " +
-                  $"credit={_lastCodex?.CreditDetail} status={_codexStatus}");
+        Log.Write($"codex refresh done: src={_lastCodex?.Source} short={_lastCodex?.Short?.Percent}" +
+                  $"({_lastCodex?.Short?.Label}) long={_lastCodex?.Long?.Percent}({_lastCodex?.Long?.Label}) " +
+                  $"plan={_lastCodex?.PlanType} credit={_lastCodex?.CreditDetail} status={_codexStatus}");
     }
 
     // 제품명이 이미 들어 있는 메시지는 그대로 둔다(같은 말을 두 번 붙이지 않게).
