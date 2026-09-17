@@ -1,15 +1,24 @@
 ﻿{
-    "version":  "0.2.2.0",
-    "downloadUrl":  "https://claude-usage-sidebar.vercel.app/ClaudeSidebar-0.2.2.0.zip",
-    "sha256":  "AE88AB98EBE9D9822BEB314FCC2FD74AABA3D9E8824D8892E661A767BAE8DE04",
+    "version":  "0.2.3.0",
+    "downloadUrl":  "https://claude-usage-sidebar.vercel.app/ClaudeSidebar-0.2.3.0.zip",
+    "sha256":  "AD02B8E9C147994209C9219EAB3B1484F0F545AF1D51DE7C5488C60972E69490",
     "notes":  [
-                  "Codex 사용량을 codex app-server 에서 받아 계정 전체 한도가 정확히 나오게 수정",
-                  "세션 기록만 볼 때 모델 전용 한도가 0%로 보이던 문제 해결",
-                  "Codex 토큰을 읽고 갱신하던 코드 제거 (더 이상 로그인 정보를 만지지 않음)"
+                  "Codex 알약을 계정 전체 한도 기준으로 수정 (모델 전용 한도가 섞여 0%로 보이던 문제)",
+                  "계정에 없는 한도는 \u0027이 요금제엔 없는 한도\u0027로 표시",
+                  "API가 막혀 기록으로 내려갔을 때 빈칸 대신 이유를 표시"
               ],
-    "releasedAt":  "2026-09-17 20:55",
+    "releasedAt":  "2026-09-17 21:00",
     "sizeMb":  0.11,
     "history":  [
+                    {
+                        "version":  "0.2.3.0",
+                        "releasedAt":  "2026-09-17 21:00",
+                        "notes":  [
+                                      "Codex 알약을 계정 전체 한도 기준으로 수정 (모델 전용 한도가 섞여 0%로 보이던 문제)",
+                                      "계정에 없는 한도는 \u0027이 요금제엔 없는 한도\u0027로 표시",
+                                      "API가 막혀 기록으로 내려갔을 때 빈칸 대신 이유를 표시"
+                                  ]
+                    },
                     {
                         "version":  "0.2.2.0",
                         "releasedAt":  "2026-09-17 20:55",

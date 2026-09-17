@@ -18,8 +18,8 @@ Claude Code 와 Codex 의 사용량 한도를 화면 오른쪽 가장자리에 �
 | CH | Claude | 5시간 세션 한도 | `#7F77DD` (보라) |
 | CW | Claude | 주간 한도 (전체 모델) | `#EF9F27` (주황) |
 | C+ | Claude | 주간 한도 (모델 전용 — `C` + API가 주는 `display_name` 첫 글자, 예: `CF`) | `#378ADD` (파랑) |
-| GH | Codex | 24시간 이하 창 중 사용률 최대 (3.6, 함정 ⑯) | `#10A37F` (초록) |
-| GW | Codex | 24시간 초과 창 중 사용률 최대 | `#19C39C` (밝은 초록) |
+| GH | Codex | **계정 전체** 한도 중 24시간 이하 창 (3.6, 함정 ⑯) | `#10A37F` (초록) |
+| GW | Codex | **계정 전체** 한도 중 24시간 초과 창 | `#19C39C` (밝은 초록) |
 
 - 앞 글자가 제품(`C`=Claude, `G`=GPT/Codex), 뒷 글자가 한도 종류다. 색은 보조 단서. 그룹 사이만 여백을 벌린다.
 - 크레딧은 양쪽 모두 알약이 아니라 상세 패널의 한 줄 텍스트다.
@@ -238,7 +238,8 @@ codex.exe app-server
   "credits":   { "has_credits": false, "unlimited": false, "balance": null } }
 ```
 
-가장 최근 파일 하나만, **뒤에서부터 꼬리 256KB** 안에서 첫 `token_count` 을 찾고 멈춘다.
+가장 최근 파일 하나만, **뒤에서부터 꼬리 256KB** 안에서 `token_count` 을 찾는다.
+`limit_id` 가 `codex`/`premium`(계정 전체)인 줄을 우선하고, 그런 줄이 없을 때만 가장 최근 줄을 쓴다(함정 ⑲).
 `FileShare.ReadWrite | Delete` 로 열고, 수정 시각이 그대로면 다시 읽지 않는다.
 세션 폴더는 통째로 수백 MB까지 자라고(실측 493MB) **파일 하나가 750MB를 넘기도 한다** — 절대 통째로 읽지 말 것.
 꼬리를 자른 지점이 줄 중간일 수 있으니 첫 줄은 버리고, 깨진 줄은 조용히 건너뛴다.
@@ -247,7 +248,11 @@ codex.exe app-server
 > 실측: prolite 계정의 계정 전체 한도는 `primary` 가 **10080분(7일)** 이고 `secondary` 는 null 이며,
 > 5시간(300분) 창은 모델별 한도 쪽에 있다. 무료 계정 기록에서는 43200분(30일)도 나왔다.
 > **반드시 `windowDurationMins`(기록 파일은 `window_minutes`) 값으로 분류할 것.** 이 앱은 24시간을 경계로 갈라
-> 각 무리에서 **사용률이 가장 높은 창**을 알약에 쓴다 — 먼저 막히는 한도가 사용자에게 의미 있는 값이다.
+> 짧은 쪽을 GH, 긴 쪽을 GW 에 넣는다.
+> **쓰는 건 `rateLimits`(계정 전체, limitId "codex") 하나뿐이다.** `rateLimitsByLimitId` 의 모델별 한도를 섞지 말 것 —
+> 함정 ⑲ 와 같은 이유로, 안 쓴 모델의 0% 가 계정 사용량인 양 보인다.
+> 계정에 그 길이의 창이 **아예 없을 수도 있다**(prolite 는 주간만 있고 5시간 창이 없다). 그때는 null 로 두고
+> 화면에 "이 요금제엔 없는 한도" 라고 적는다 — 빈 `--` 만 두면 고장으로 보인다.
 > 어느 창이든 null 일 수 있고, `balance` 는 숫자가 아니라 **문자열**("0")로 온다.
 
 > **함정 ⑰ (HTTP 사용량 엔드포인트는 Windows 에서 못 뚫는다)** — `GET https://chatgpt.com/backend-api/codex/usage`
@@ -448,10 +453,13 @@ dotnet publish src/ClaudeSidebar/ClaudeSidebar.csproj -c Release -o dist
 5. Claude 데스크톱 앱 종료 → 수 초 내 사이드바 사라짐 / 재실행 → 다시 나타남.
 6. 재부팅 → 트레이에 자동 상주 (HKCU Run 등록 확인).
 7. 흰 배경 창 위에서 알약이 또렷하게 보임.
+   또한 API 가 429 로 막혀 폴백(`src=FILE`)으로 내려갔을 때, 폴백에 없는 값(CF·크레딧)이 그냥 빈칸이 아니라
+   "앱 기록에는 없는 값" 이라고 이유가 적혀야 한다 — 빈칸만 두면 고장으로 오해된다.
 8. Claude 창을 보조 모니터로 옮김 → 수 초 내 사이드바가 그 화면 오른쪽 끝으로 이동하고, 되돌리면 따라서 돌아옴
    (혼합 DPI 간 이동이 핵심 — `[place:follow]` 마지막 줄이 `일치`여야 하고 실제 우변이 `work.Right` 와 같아야 한다).
 9. 사이드바를 다른 모니터로 끌어다 놓은 뒤 Claude 를 그대로 두면, 2초 그물이 도는 동안에도 제자리에 머문다.
-10. `codex refresh done: src=CLI short=..(이름) long=..(이름) plan=..` 이 찍히고, Codex 알약 두 개에 값이 든다.
+10. `codex refresh done: src=CLI short=..(이름) long=..(이름) plan=..` 이 찍히고, Codex 알약에 **계정 전체** 값이 든다.
+    (이름이 `codex` 가 아니면 모델별 한도를 잘못 집은 것이다.)
     **`src=FILE` 로 떨어졌는데 값이 0% 면 함정 ⑲ 를 의심할 것** — 계정 전체가 아니라 모델별 한도를 본 것이다.
 11. Codex CLI 바이너리가 없거나 app-server 가 실패해도 Claude 쪽 값은 멀쩡히 남고, Codex 만 조용히 기록 소스로 내려간다.
 12. `~/.codex` 가 없는 PC 에서 Codex 알약 두 개와 상세 구역이 통째로 사라지고, 상태 줄에도 Codex 문구가 없다.

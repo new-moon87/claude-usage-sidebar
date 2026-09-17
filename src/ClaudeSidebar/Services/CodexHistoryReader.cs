@@ -40,24 +40,41 @@ public class CodexHistoryReader
             // 파일이 그대로면 다시 읽지 않는다 — 이 함수는 60초마다 불린다.
             if (newest.FullName == _cachedPath && newest.LastWriteTimeUtc == _cachedStamp) return _cached;
 
+            // 계정 전체 한도가 담긴 줄을 우선한다. 모델별 한도는 안 쓴 모델이면 0% 라
+            // 그대로 보여 주면 계정 사용량이 0 인 것처럼 보인다(함정 ⑲).
+            CodexSnapshot? firstAny = null;
             foreach (var line in TailLines(newest))
             {
                 if (!line.Contains("\"rate_limits\"")) continue;
                 var snap = ParseLine(line);
                 if (snap is null) continue;
-                snap.FetchedAt = new DateTimeOffset(newest.LastWriteTimeUtc).ToLocalTime();
-                _cachedPath = newest.FullName;
-                _cachedStamp = newest.LastWriteTimeUtc;
-                _cached = snap;
-                return snap;
+                firstAny ??= snap;
+                if (!IsAccountWide(snap)) continue;
+                return Cache(newest, snap);
             }
-            return null;
+            return firstAny is null ? null : Cache(newest, firstAny);
         }
         catch (Exception ex)
         {
             Log.Write("[codex] history read error: " + ex.Message);
             return null;
         }
+    }
+
+    // 계정 전체 한도인지. 기록 파일의 limit_id 는 계정 전체면 codex/premium, 모델별이면 그 모델 id 다.
+    private static bool IsAccountWide(CodexSnapshot snap)
+    {
+        var label = snap.Short?.Label ?? snap.Long?.Label ?? "";
+        return label.Length == 0 || label == "codex" || label == "premium";
+    }
+
+    private CodexSnapshot Cache(FileInfo file, CodexSnapshot snap)
+    {
+        snap.FetchedAt = new DateTimeOffset(file.LastWriteTimeUtc).ToLocalTime();
+        _cachedPath = file.FullName;
+        _cachedStamp = file.LastWriteTimeUtc;
+        _cached = snap;
+        return snap;
     }
 
     // 파일 끝 TailBytes 만 읽어 뒤에서 앞으로 한 줄씩 돌려준다.

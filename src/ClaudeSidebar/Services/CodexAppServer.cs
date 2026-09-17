@@ -114,41 +114,29 @@ public static class CodexAppServer
         return null;
     }
 
+    // 알약에는 **계정 전체 한도만** 쓴다(`rateLimits`, limitId "codex").
+    // 모델별 한도(`rateLimitsByLimitId` 의 나머지)를 섞으면, 안 쓴 모델의 0% 가 계정 사용량인 양 보인다 —
+    // 실제로 계정 전체가 26% 인데 GH 가 0% 로 뜨던 원인이다.
+    // 계정에 그 길이의 창이 아예 없을 수도 있다(prolite 는 주간만 있고 5시간 창이 없다). 그때는 null 로 둔다.
     private static CodexSnapshot Parse(JsonElement result)
     {
         var snap = new CodexSnapshot { FetchedAt = DateTimeOffset.Now, Source = "CLI" };
+        if (!result.TryGetProperty("rateLimits", out var account) || account.ValueKind != JsonValueKind.Object)
+            return snap;
+
+        if (account.TryGetProperty("planType", out var pt) && pt.ValueKind == JsonValueKind.String)
+            snap.PlanType = pt.GetString();
+        snap.CreditDetail = ReadCredits(account);
+
         var windows = new List<CodexWindow>();
-
-        if (result.TryGetProperty("rateLimits", out var account) && account.ValueKind == JsonValueKind.Object)
+        Collect(account, windows);
+        foreach (var w in windows)
         {
-            Collect(account, windows);
-            if (account.TryGetProperty("planType", out var pt) && pt.ValueKind == JsonValueKind.String)
-                snap.PlanType = pt.GetString();
-            snap.CreditDetail = ReadCredits(account);
+            bool isShort = w.WindowSeconds <= ShortWindowMaxMinutes * 60;
+            if (isShort && (snap.Short is null || w.Percent > snap.Short.Percent)) snap.Short = w;
+            if (!isShort && (snap.Long is null || w.Percent > snap.Long.Percent)) snap.Long = w;
         }
-
-        if (result.TryGetProperty("rateLimitsByLimitId", out var byId) && byId.ValueKind == JsonValueKind.Object)
-        {
-            foreach (var entry in byId.EnumerateObject())
-            {
-                // 계정 전체는 위에서 이미 넣었다. 같은 창을 두 번 세도 최댓값은 안 변하지만 라벨이 지저분해진다.
-                if (entry.Name == "codex") continue;
-                Collect(entry.Value, windows);
-                snap.CreditDetail ??= ReadCredits(entry.Value);
-            }
-        }
-
-        snap.Short = Pick(windows, w => w.WindowSeconds <= ShortWindowMaxMinutes * 60);
-        snap.Long = Pick(windows, w => w.WindowSeconds > ShortWindowMaxMinutes * 60);
         return snap;
-    }
-
-    private static CodexWindow? Pick(List<CodexWindow> all, Func<CodexWindow, bool> match)
-    {
-        CodexWindow? best = null;
-        foreach (var w in all)
-            if (match(w) && (best is null || w.Percent > best.Percent)) best = w;
-        return best;
     }
 
     private static void Collect(JsonElement limit, List<CodexWindow> into)

@@ -553,11 +553,14 @@ public partial class MainWindow : Window
 
         _h.RowReset.Text = FormatCountdown(s?.FiveHour?.ResetsAt);
         _w.RowReset.Text = FormatWeekly(s?.SevenDay?.ResetsAt);
-        _f.RowReset.Text = s?.ModelWeekly is null ? "정보 없음" : FormatWeekly(s.ModelWeekly.ResetsAt);
+        _f.RowReset.Text = s?.ModelWeekly is not null ? FormatWeekly(s.ModelWeekly.ResetsAt)
+            : s?.Source == "FILE" ? "앱 기록에는 없는 값 · API 복구 대기"
+            : "정보 없음";
         _claudeCredit.Text = s?.ExtraUsageDetail is { Length: > 0 } d
             ? "크레딧 " + d
             : s?.ExtraUsagePct is double x
                 ? (x <= 0 ? "크레딧 사용 없음" : $"크레딧 {x:0}% 사용")
+                : s?.Source == "FILE" ? "크레딧 · 앱 기록에는 없는 값"
                 : "크레딧 정보 없음";
 
         ApplyCodex(cx);
@@ -587,8 +590,12 @@ public partial class MainWindow : Window
     {
         SetPill(_codexShort, cx?.Short?.Percent);
         SetPill(_codexLong, cx?.Long?.Percent);
-        _codexShort.RowReset.Text = FormatCodexReset(cx?.Short);
-        _codexLong.RowReset.Text = FormatCodexReset(cx?.Long);
+        _codexShort.RowReset.Text = cx is not null && cx.Short is null
+            ? "이 요금제엔 없는 한도"
+            : FormatCodexReset(cx?.Short);
+        _codexLong.RowReset.Text = cx is not null && cx.Long is null
+            ? "이 요금제엔 없는 한도"
+            : FormatCodexReset(cx?.Long);
         _codexShort.RowName.Text = RowName("5시간", cx?.Short);
         _codexLong.RowName.Text = RowName("주간", cx?.Long);
         _codexCredit.Text = cx?.CreditDetail ?? "크레딧 정보 없음";
