@@ -42,6 +42,9 @@ Claude Code 와 Codex 의 사용량 한도를 화면 오른쪽 가장자리에 �
 - 상세 패널: 지표명 · % · 게이지 바 · 리셋 시각 · 푸터(갱신 시각 HH:mm:ss + 새로고침 + 핀 버튼) · 오류 상태 줄.
 - 핀 버튼(Segoe MDL2 Assets 글리프)으로 펼침 고정/해제. **알약 클릭으로는 고정하지 않는다** (드래그와 혼동됨 — 실사용 피드백으로 제거된 설계).
 - 알약 드래그 → 위아래 위치 이동(저장). 가로는 항상 화면 오른쪽에 스냅.
+- 상세 패널의 지표 이름 왼쪽 **체크칸**으로 그 알약을 켜고 끈다. 끄면 알약만 사라지고 상세 줄은 남는다
+  (남아 있어야 다시 켤 수 있다). 꺼진 줄은 흐리게, 체크칸은 빈 칸으로. 선택은 `settings.json` 의
+  `HiddenPills`(키: CH/CW/CF/GH/GW)에 저장한다.
 - **Claude 창이 떠 있는 모니터로 자동 이동** — Claude 를 다른 화면으로 옮기면 사이드바도 따라간다(5장 함정 ⑮).
 - 트레이 아이콘 메뉴: Claude 재로그인(터미널 열기) / 다운로드 사이트 열기 / 항상 표시 / Windows 시작 시 실행 / 버전·카피라이트(비활성 캡션) / 종료. 새로고침은 트레이 아이콘 더블클릭.
 
@@ -271,6 +274,13 @@ codex.exe app-server
 > app-server 는 그 요청을 Codex 가 자기 스택으로 보내 주므로 통과하고, 덤으로 토큰 취급 코드가 통째로 없어진다.
 > (빈도도 문제다 — 몇 분 사이 스무 번쯤 두드리면 파이썬까지 포함해 전부 몇 분간 막힌다. 그래서 10분 간격.)
 
+> **함정 ⑳ (알약을 전부 끄면 패널을 다시 열 방법이 없다)** — 상세 패널은 알약에 마우스를 올려야 펼쳐진다.
+> 알약을 하나도 안 남기면 올릴 대상이 사라지고, 되돌릴 체크칸도 그 패널 안에 있으니 설정 파일을 손으로
+> 고치기 전엔 복구가 안 된다. **마지막 하나는 끄지 못하게 막고**, 거부할 때는 화면(푸터)과 로그 양쪽에 남긴다 —
+> 조용히 무시하면 "클릭이 안 먹었나" 와 구분이 안 된다.
+> 설정 파일에 전부 꺼진 값이 들어와도(손으로 고쳤거나 예전 버전) 첫 알약은 되살린다.
+> 푸터 문구는 새로고침·핀 왼쪽의 남는 폭만 쓴다. 길면 겹치므로 짧게 쓰고 `TextTrimming` 을 걸어 둔다.
+
 > **함정 ⑲ (기록 파일에는 그 요청에 적용된 한도 하나만 들어 있다)** — 이게 "GPT 사용량 0%" 의 정체다.
 > rollout 의 `rate_limits` 는 계정 전체 요약이 아니라 **그 요청에 걸린 한도 한 덩어리**다.
 > 특정 모델만 쓰는 세션이면 그 모델 한도만 쌓인다 — 실측: 계정 전체가 26% 인 시점에
@@ -297,7 +307,7 @@ src/ClaudeSidebar/
    ├─ CodexHistoryReader.cs      — 3.6 (rollout 폴백)
    ├─ ProcessWatcher.cs          — 3.5
    ├─ DisplayInfo.cs             — 모니터 열거/DPI/물리 좌표 (캐시 금지)
-   ├─ SettingsStore.cs           — settings.json {MonitorName, PhysY, Pinned, Autostart, ForceShow}
+   ├─ SettingsStore.cs           — settings.json {MonitorName, PhysY, Pinned, HiddenPills, Autostart, ForceShow}
    │                                로드 실패를 조용히 삼키지 말고 로그를 남길 것
    └─ Autostart.cs               — HKCU\...\Run에 "ClaudeSidebar"=현재 exe 경로
 ```
@@ -464,6 +474,8 @@ dotnet publish src/ClaudeSidebar/ClaudeSidebar.csproj -c Release -o dist
 11. Codex CLI 바이너리가 없거나 app-server 가 실패해도 Claude 쪽 값은 멀쩡히 남고, Codex 만 조용히 기록 소스로 내려간다.
 12. `~/.codex` 가 없는 PC 에서 Codex 알약 두 개와 상세 구역이 통째로 사라지고, 상태 줄에도 Codex 문구가 없다.
 13. 창 높이 400 에서 상세 패널이 잘리지 않는다(알약 5개 + 크레딧 두 줄 + 상태 줄 두 줄까지).
+14. 체크칸을 끄면 그 알약만 사라지고 `settings.json` 의 `HiddenPills` 에 키가 쌓인다. 재시작해도 그대로다.
+15. 알약 하나만 남은 상태에서 그 체크칸을 누르면 거부되고 `[pills] .. 끄기 거부` 가 로그에 남는다(함정 ⑳).
 
 ## 10. 알려진 한계
 

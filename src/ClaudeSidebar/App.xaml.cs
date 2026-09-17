@@ -68,6 +68,13 @@ public partial class App : Application
         _window.RefreshRequested += ManualRefresh;
         _window.ReloginRequested += OpenLoginTerminal;
         _window.PinnedChanged += p => { _settings.Settings.Pinned = p; _settings.Save(); };
+        _window.SetHiddenPills(_settings.Settings.HiddenPills);
+        _window.PillVisibilityChanged += keys =>
+        {
+            _settings.Settings.HiddenPills = keys;
+            _settings.Save();
+            Log.Write("[pills] 꺼 둔 알약: " + (keys.Count == 0 ? "(없음)" : string.Join(",", keys)));
+        };
         _window.PlacementChanged += (mon, y) =>
         {
             _settings.Settings.MonitorName = mon;

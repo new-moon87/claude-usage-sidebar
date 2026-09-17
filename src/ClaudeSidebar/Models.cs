@@ -36,6 +36,8 @@ public class AppSettings
     public string? MonitorName { get; set; }
     public int? PhysY { get; set; }
     public bool Pinned { get; set; }
+    /// 사용자가 꺼 둔 알약 키(CH/CW/CF/GH/GW). 상세 패널의 체크칸으로 켜고 끈다.
+    public List<string> HiddenPills { get; set; } = new();
     public bool Autostart { get; set; } = true;
     public bool ForceShow { get; set; }
 }

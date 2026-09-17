@@ -30,6 +30,7 @@ public partial class MainWindow : Window
 
     private class Pill
     {
+        public string Key = "";
         public Color BaseColor;
         public TextBlock LetterText = null!;
         public TextBlock Digits = null!;
@@ -39,6 +40,10 @@ public partial class MainWindow : Window
         public TextBlock RowPct = null!;
         public TextBlock RowReset = null!;
         public Rectangle RowFill = null!;
+        /// 알약 자체(스트립에 들어가는 것). 체크를 끄면 이것만 숨긴다 — 상세 줄은 남아야 다시 켤 수 있다.
+        public Border Strip = null!;
+        public Border Check = null!;
+        public bool Shown = true;
     }
 
     private readonly Pill _h;
@@ -46,6 +51,7 @@ public partial class MainWindow : Window
     private readonly Pill _f;
     private readonly Pill _codexShort;
     private readonly Pill _codexLong;
+    private readonly List<Pill> _pills = new();
     private readonly DispatcherTimer _collapseTimer;
     // 알약과 상세 행이 들어갈 자리. 빌드 중에 바꿔 끼워 Codex 구역을 따로 담는다.
     private Panel _pillHost = null!;
@@ -78,6 +84,8 @@ public partial class MainWindow : Window
     public event Action? ReloginRequested;
     public event Action<bool>? PinnedChanged;
     public event Action<string, int>? PlacementChanged;
+    /// 꺼 둔 알약 키 목록. 설정에 그대로 저장한다.
+    public event Action<List<string>>? PillVisibilityChanged;
 
     public MainWindow()
     {
@@ -87,7 +95,7 @@ public partial class MainWindow : Window
         BuildHeader("Claude 사용량", UpdateChecker.VersionText, out _);
         _h = MakePill("CH", "5시간 세션", Color.FromRgb(0x7F, 0x77, 0xDD));
         _w = MakePill("CW", "주간 · 전체", Color.FromRgb(0xEF, 0x9F, 0x27));
-        _f = MakePill("CF", "주간 · Fable", Color.FromRgb(0x37, 0x8A, 0xDD));
+        _f = MakePill("CF", "주간 · Fable", Color.FromRgb(0x37, 0x8A, 0xDD));   // 키는 CF 로 고정(글자는 모델 따라 바뀐다)
         _claudeCredit = AddNoteRow();
         // 앞 글자가 제품(C=Claude, G=GPT/Codex), 뒷 글자가 한도 종류(H=5시간, W=주간, F=모델 전용)다.
         // 색은 보조 단서로 남긴다 — Codex 는 OpenAI 초록 계열.
@@ -292,7 +300,8 @@ public partial class MainWindow : Window
 
     private Pill MakePill(string letter, string name, Color color, bool groupGap = false)
     {
-        var pill = new Pill { BaseColor = color };
+        var pill = new Pill { BaseColor = color, Key = letter };
+        _pills.Add(pill);
 
         var grid = new Grid { Width = PillW, Height = PillH };
         grid.Clip = new RectangleGeometry(new Rect(0, 0, PillW, PillH), PillW / 2, PillW / 2);
@@ -337,7 +346,7 @@ public partial class MainWindow : Window
         texts.Children.Add(pill.Digits);
         grid.Children.Add(texts);
 
-        _pillHost.Children.Add(new Border
+        pill.Strip = new Border
         {
             Child = grid,
             Background = Brushes.Transparent,
@@ -345,9 +354,29 @@ public partial class MainWindow : Window
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(PillW / 2 + 1),
             Margin = new Thickness(0, groupGap ? 10 : 3, 0, 3)
-        });
+        };
+        _pillHost.Children.Add(pill.Strip);
 
         var head = new DockPanel { Margin = new Thickness(0, 4, 0, 3) };
+        // 글리프 폰트 대신 직접 그린다. 켜면 그 지표 색으로 차고, 끄면 빈 칸이 된다 —
+        // 어느 알약을 켜고 끄는지 색으로 바로 읽힌다.
+        pill.Check = new Border
+        {
+            Width = 11,
+            Height = 11,
+            CornerRadius = new CornerRadius(3),
+            BorderThickness = new Thickness(1),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(0x66, 0xFF, 0xFF, 0xFF)),
+            Background = new SolidColorBrush(color),
+            Cursor = Cursors.Hand,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 7, 0),
+            ToolTip = "알약 표시 끄기/켜기"
+        };
+        pill.Check.MouseLeftButtonUp += (_, _) => TogglePill(pill);
+        DockPanel.SetDock(pill.Check, Dock.Left);
+        head.Children.Add(pill.Check);
+
         pill.RowPct = new TextBlock
         {
             Text = "--",
@@ -478,7 +507,8 @@ public partial class MainWindow : Window
         {
             Text = "--",
             FontSize = 10,
-            Foreground = new SolidColorBrush(Color.FromRgb(0x88, 0x87, 0x80))
+            Foreground = new SolidColorBrush(Color.FromRgb(0x88, 0x87, 0x80)),
+            TextTrimming = TextTrimming.CharacterEllipsis
         };
         dock.Children.Add(_pinBtn);
         dock.Children.Add(refresh);
@@ -514,9 +544,11 @@ public partial class MainWindow : Window
 
     public void ShowRefreshing() => _footer.Text = "갱신 중…";
 
-    public void FlashThrottled()
+    public void FlashThrottled() => FlashFooter("5초에 한 번만 갱신돼요");
+
+    private void FlashFooter(string message)
     {
-        _footer.Text = "5초에 한 번만 갱신돼요";
+        _footer.Text = message;
         if (_flashTimer is null)
         {
             _flashTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1300) };
@@ -581,6 +613,49 @@ public partial class MainWindow : Window
         var v = visible ? Visibility.Visible : Visibility.Collapsed;
         _codexPillGroup.Visibility = v;
         _codexRowGroup.Visibility = v;
+    }
+
+    // 알약을 전부 끄면 마우스를 올릴 대상이 없어져 이 패널을 다시 열 방법이 사라진다.
+    // 그래서 마지막 하나는 끄지 못하게 막는다.
+    private void TogglePill(Pill pill)
+    {
+        if (pill.Shown && _pills.Count(p => p.Shown && p.Strip.IsVisible) <= 1)
+        {
+            // 조용히 무시하면 "클릭이 안 먹었나" 와 구분이 안 된다. 화면과 로그 양쪽에 남긴다.
+            Log.Write($"[pills] {pill.Key} 끄기 거부 — 마지막 남은 알약");
+            FlashFooter("하나는 켜 두세요");
+            return;
+        }
+        pill.Shown = !pill.Shown;
+        ApplyPillVisibility(pill);
+        PillVisibilityChanged?.Invoke(_pills.Where(p => !p.Shown).Select(p => p.Key).ToList());
+    }
+
+    private static void ApplyPillVisibility(Pill pill)
+    {
+        pill.Strip.Visibility = pill.Shown ? Visibility.Visible : Visibility.Collapsed;
+        pill.Check.Background = pill.Shown
+            ? new SolidColorBrush(pill.BaseColor)
+            : Brushes.Transparent;
+        pill.RowName.Opacity = pill.Shown ? 1.0 : 0.45;
+        pill.RowPct.Opacity = pill.Shown ? 1.0 : 0.45;
+    }
+
+    /// 설정에서 불러온 "꺼 둔 알약" 목록을 적용한다.
+    public void SetHiddenPills(IEnumerable<string> hidden)
+    {
+        var set = hidden.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var p in _pills)
+        {
+            p.Shown = !set.Contains(p.Key);
+            ApplyPillVisibility(p);
+        }
+        // 전부 꺼진 설정이 들어오면(손으로 고쳤거나 예전 버전) 첫 알약은 되살린다.
+        if (_pills.Count > 0 && _pills.All(p => !p.Shown))
+        {
+            _pills[0].Shown = true;
+            ApplyPillVisibility(_pills[0]);
+        }
     }
 
     private static bool IsClaudeLogin(string? status) =>

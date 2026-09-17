@@ -1,15 +1,22 @@
 ﻿{
-    "version":  "0.2.3.0",
-    "downloadUrl":  "https://claude-usage-sidebar.vercel.app/ClaudeSidebar-0.2.3.0.zip",
-    "sha256":  "AD02B8E9C147994209C9219EAB3B1484F0F545AF1D51DE7C5488C60972E69490",
+    "version":  "0.3.0.0",
+    "downloadUrl":  "https://claude-usage-sidebar.vercel.app/ClaudeSidebar-0.3.0.0.zip",
+    "sha256":  "4C2CE8183D4BD9ABC444A8CF740C5491D7F8F8D38742E23AC36D70858097D4DC",
     "notes":  [
-                  "Codex 알약을 계정 전체 한도 기준으로 수정 (모델 전용 한도가 섞여 0%로 보이던 문제)",
-                  "계정에 없는 한도는 \u0027이 요금제엔 없는 한도\u0027로 표시",
-                  "API가 막혀 기록으로 내려갔을 때 빈칸 대신 이유를 표시"
+                  "상세 패널의 체크칸으로 알약을 하나씩 켜고 끄기 (선택은 저장됨)",
+                  "알약을 전부 끄면 패널을 다시 못 여니 마지막 하나는 보호"
               ],
-    "releasedAt":  "2026-09-17 21:00",
+    "releasedAt":  "2026-09-17 22:21",
     "sizeMb":  0.11,
     "history":  [
+                    {
+                        "version":  "0.3.0.0",
+                        "releasedAt":  "2026-09-17 22:21",
+                        "notes":  [
+                                      "상세 패널의 체크칸으로 알약을 하나씩 켜고 끄기 (선택은 저장됨)",
+                                      "알약을 전부 끄면 패널을 다시 못 여니 마지막 하나는 보호"
+                                  ]
+                    },
                     {
                         "version":  "0.2.3.0",
                         "releasedAt":  "2026-09-17 21:00",
